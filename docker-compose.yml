@@ -1,0 +1,39 @@
+name: aromat-dnya
+
+services:
+  bot:
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:////data/aromat.db
+    volumes:
+      - aromat_data:/data
+      - type: bind
+        source: ${AROMAT_ENV_FILE:-./.env}
+        target: /app/.env
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD", "python", "-m", "bot", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+volumes:
+  aromat_data:

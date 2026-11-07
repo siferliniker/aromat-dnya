@@ -31,7 +31,7 @@ scoring:
     consensus_max_gap: 0.15
 
 sources:
-  dataset: {kind: dataset, enabled: false}
+  dataset: {kind: dataset, enabled: true}
   fragrantica_live: {kind: review, enabled: false}
   otzovik: {kind: review, enabled: false}
   irecommend: {kind: review, enabled: false}

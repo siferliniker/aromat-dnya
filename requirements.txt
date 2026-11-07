@@ -1,4 +1,8 @@
 SQLAlchemy==2.1.8
-pydantic==2.14.3
+pydantic==2.13.5
 PyYAML==6.0.3
 tzdata==2026.6
+aiogram==3.31.0
+APScheduler==3.11.3
+python-dotenv==1.2.4
+sqlcipher3==0.6.5

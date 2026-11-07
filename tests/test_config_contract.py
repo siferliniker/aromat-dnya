@@ -25,6 +25,13 @@ def test_config_sets_default_delivery_recommendation_and_provider():
     assert config.llm.provider == "openai"
 
 
+def test_mvp_enables_only_the_approved_offline_catalog_and_no_live_llm():
+    config = load_config(CONFIG_PATH)
+    assert config.sources["dataset"].enabled
+    assert not any(source.enabled for key, source in config.sources.items() if key != "dataset")
+    assert not config.llm.enabled
+
+
 def test_config_loads_all_formula_parameters(tmp_path):
     raw_config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     weights = raw_config["scoring"]["weights"]
