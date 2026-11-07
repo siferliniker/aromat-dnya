@@ -1,0 +1,49 @@
+delivery:
+  timezone: Asia/Omsk
+  send_at: "10:00"
+  language: ru
+
+recommendation:
+  exploration_ratio: 0.30
+
+scoring:
+  weights:
+    fragrantica: 0.20
+    russian_reviews: 0.15
+    bloggers: 0.20
+    consensus: 0.10
+    novelty: 0.10
+    hype: 0.10
+    taste: 0.15
+  hype_sign: -1
+  missing_data: redistribute_available
+  normalization:
+    component_min: 0
+    component_max: 1
+  bayesian:
+    rating_prior_mean: 3.5
+    reaction_prior_positive: 0.70
+    prior_count: 50
+  thresholds:
+    novelty_max_rating_count: 100
+    hype_min_rating_count: 10000
+    hype_max_popularity_rank: 100
+    consensus_max_gap: 0.15
+
+sources:
+  dataset: {kind: dataset, enabled: false}
+  fragrantica_live: {kind: review, enabled: false}
+  otzovik: {kind: review, enabled: false}
+  irecommend: {kind: review, enabled: false}
+  randewoo_reviews: {kind: review, enabled: false}
+  goldapple_reviews: {kind: review, enabled: false}
+  youtube: {kind: blog, enabled: false}
+  telegram: {kind: blog, enabled: false}
+  randewoo: {kind: shop, enabled: false}
+  goldapple: {kind: shop, enabled: false}
+  manual: {kind: manual, enabled: false}
+
+llm:
+  provider: openai
+  enabled: false
+  model: null
