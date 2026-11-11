@@ -12,13 +12,15 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from config import AppConfig, load_config
 from scoring.dataset import score_dataset
+from scoring.discovery import choose_order, discovery_context
 from storage.models import Perfume, RatingObservation, SentLog, Source, UserFeedback, UTCDateTime
 
 
 DEFAULT_CATALOG_PATH = Path(__file__).resolve().parents[1] / "data" / "scento" / "perfumes.jsonl"
 DEFAULT_CONTENT_PATH = Path(__file__).resolve().parents[1] / "data" / "miniapp_content.json"
 IMAGE_ORIGINS = ("https://www.acquadiparma.com", "https://us.afnan.com",
-                 "https://acquadiparma.jp", "https://scentgrail.com")
+                 "https://acquadiparma.jp", "https://scentgrail.com",
+                 "https://armaf.com", "https://us.alharamainperfumes.com")
 REACTIONS = frozenset(("want", "known", "not_for_me", "bought"))
 
 
@@ -144,8 +146,7 @@ class MiniAppRepository:
             else:
                 score = score_dataset(latest.get((perfume.id, perfume.source_id,
                                                   perfume.source_revision_id)), self.config.scoring)
-            if score.total is not None:
-                scored.append((score.total, perfume.id, perfume))
+            scored.append((score.total if score.total is not None else 0.0, perfume.id, perfume))
         scored.sort(key=lambda item: (-item[0], item[1]))
         return [perfume for _, _, perfume in scored]
 
@@ -158,6 +159,7 @@ class MiniAppRepository:
                 "concentration": original.get("concentration") or "",
                 "notes": {level: original.get(f"{level}_notes") or [] for level in ("top", "heart", "base")},
                 "seasons": original.get("seasons") or [],
+                "times_of_day": original.get("times_of_day") or [],
                 "release_year": perfume.release_year, "perfumers": perfume.perfumers or [],
                 "description_ru": content.get("description_ru") or "",
                 "image": content.get("image"), "reviews": content.get("reviews") or []}
@@ -190,42 +192,25 @@ class MiniAppRepository:
                    if features | example else 0.0 for example in examples) / len(examples)
 
     def _ordered(self, session: Session, user_id: int, perfumes: list[Perfume], excluded: set[int]):
-        ranked = self._ranked(session, perfumes, excluded)
-        positive, negative, last_house, count = self._preferences(session, user_id, perfumes)
-        ratio = self.config.recommendation.exploration_ratio
-        explore = int(count * ratio) > int(max(0, count - 1) * ratio)
-        if positive or negative:
-            baseline = {perfume.id: index for index, perfume in enumerate(ranked)}
-            def key(perfume):
-                features = self._features(perfume)
-                liked = self._similarity(features, positive)
-                disliked = self._similarity(features, negative)
-                # Separate browsing order; never presented as a measured review score.
-                return (disliked, liked, baseline[perfume.id]) if explore else (
-                    disliked - liked, baseline[perfume.id])
-            ranked.sort(key=key)
-        if (not positive and not negative) or explore:
-            by_id = {perfume.id: perfume for perfume in perfumes}
-            house_visits = {}
-            for perfume_id in session.scalars(select(UserFeedback.perfume_id).where(
-                    UserFeedback.user_id == user_id)):
-                if perfume_id in by_id:
-                    house = by_id[perfume_id].house
-                    house_visits[house] = house_visits.get(house, 0) + 1
-            # Stable sorting retains the existing order within equally explored houses.
-            ranked.sort(key=lambda perfume: house_visits.get(perfume.house, 0))
-        if last_house:
-            different = next((index for index, perfume in enumerate(ranked)
-                              if perfume.house != last_house), None)
-            if different is not None:
-                ranked.insert(0, ranked.pop(different))
-        return ranked
+        candidates = [p for p in perfumes if p.id not in excluded]
+        tastes, latest, rank_max, feedback, _profile = discovery_context(
+            session, perfumes, user_id, datetime.now(timezone.utc))
+        totals = {}
+        for perfume in candidates:
+            rating = latest.get((perfume.id, perfume.source_id, perfume.source_revision_id))
+            if self.opinions is not None:
+                from scoring.engine import score_opinions
+                result = score_opinions(self.opinions.load_evidence(perfume.id,
+                    now=datetime.now(timezone.utc), session=session), self.config.scoring,
+                    taste=tastes.get(perfume.id))
+            else:
+                result = score_dataset(rating, self.config.scoring,
+                    taste=tastes.get(perfume.id), rank_max=rank_max)
+            totals[perfume.id] = result.total
+        return choose_order(candidates, totals, feedback, self.config.recommendation)
 
     def _reason(self, session: Session, user_id: int, current: Perfume, perfumes: list[Perfume]) -> str:
         positive, negative, last_house, count = self._preferences(session, user_id, perfumes)
-        ratio = self.config.recommendation.exploration_ratio
-        if positive and int(count * ratio) > int(max(0, count - 1) * ratio):
-            return "Новое направление: расширяем подбор за пределы привычных нот."
         if positive and self._similarity(self._features(current), positive) > 0:
             return "Есть ноты или семейство ароматов, которые вы отметили сердцем или добавили в коллекцию."
         if last_house and current.house != last_house:
@@ -353,13 +338,15 @@ class MiniAppRepository:
             return self._state(session, row, perfumes, available, excluded) | {"applied": applied}
 
     def catalogue(self, user_id: int, *, q: str = "", family: str = "", season: str = "",
-                  note: str = "", offset: int = 0, limit: int = 30) -> dict:
-        if (any(not isinstance(v, str) or len(v) > 120 for v in (q, family, season, note))
+                  note: str = "", time: str = "", offset: int = 0, limit: int = 30) -> dict:
+        if (any(not isinstance(v, str) or len(v) > 120 for v in (q, family, season, note, time))
                 or type(offset) is not int or not 0 <= offset <= 10000
                 or type(limit) is not int or not 1 <= limit <= 60):
             raise ValueError("invalid catalogue filters")
         if season and season not in ("spring", "summer", "autumn", "winter"):
             raise ValueError("invalid season")
+        if time and time not in ("day", "evening", "night", "morning"):
+            raise ValueError("invalid time")
         with Session(self.engine) as session:
             perfumes = self._catalogue(session)
             row = session.get(MiniAppState, user_id)
@@ -371,11 +358,13 @@ class MiniAppRepository:
                                      "reaction": feedback.get(p.id)} for p in perfumes]
             facets = {"families": sorted({c["family"] for c in cards if c["family"]}),
                       "seasons": sorted({s for c in cards for s in c["seasons"]}),
+                      "times": sorted({t for c in cards for t in c["times_of_day"]}),
                       "notes": sorted({n for c in cards for values in c["notes"].values() for n in values})}
             query = q.strip().casefold()
             items = [c for c in cards
                      if (not family or c["family"] == family)
                      and (not season or season in c["seasons"])
+                     and (not time or time in c["times_of_day"])
                      and (not note or any(note in values for values in c["notes"].values()))
                      and (not query or query in " ".join([c["name"], c["house"], c["family"],
                          *[n for values in c["notes"].values() for n in values]]).casefold())]

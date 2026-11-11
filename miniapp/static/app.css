@@ -38,13 +38,81 @@ main { outline: none; padding-top: 24px; }
 .chip { font-size: 11px; color: var(--muted); }
 .chip + .chip::before { content: "·"; padding-right: 14px; color: var(--line); }
 .perfume-visual { min-width: 0; margin: 0 0 24px; }
-.perfume-image { display: block; width: 100%; height: clamp(210px, 62vw, 330px); object-fit: contain; }
+.perfume-image { display: block; width: 100%; height: clamp(210px, 62vw, 330px); object-fit: contain; transition: transform .28s cubic-bezier(.16,1,.3,1); }
+.perfume-visual:hover .perfume-image { transform: translateY(-4px) scale(1.025); }
 .description { margin: 0 0 22px; font-size: 14px; line-height: 1.8; color: var(--muted); }
-.pyramid { padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.note-row { display: grid; grid-template-columns: 70px minmax(0,1fr); gap: 12px; margin: 9px 0; }
-.note-label { color: var(--muted); font-size: 12px; }
-.note-values { font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
-.note-values span + span::before { content: " · "; color: var(--muted); }
+/* Ingredient constellations: the positions are decorative, not note weights. */
+.pyramid { display: grid; gap: 23px; padding: 16px 0 22px; }
+.note-constellation { position: relative; min-width: 0; }
+.note-stage { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; color: var(--sage); }
+.note-stage-number { font-size: 9px; letter-spacing: .08em; opacity: .65; }
+.note-stage h2 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: .04em; }
+.note-stage-line { height: 1px; flex: 1; background: linear-gradient(90deg, var(--line), transparent); }
+.note-cloud { display: flex; flex-wrap: wrap; align-items: start; justify-content: center; gap: 6px 10px; position: relative; padding: 2px 0 8px; }
+.note-cloud::before { content: ""; position: absolute; inset: 32px 10% 42px; border-top: 1px dashed var(--line); border-radius: 50%; transform: rotate(-6deg); pointer-events: none; }
+.note-orbit { flex: 0 1 78px; position: relative; margin: 0; min-width: 0; text-align: center; transform-origin: 50% 85%; animation: note-arrive .3s cubic-bezier(.16,1,.3,1) both; }
+.note-orbit:nth-child(3n + 2) { padding-top: 14px; }
+.note-orbit:nth-child(4n + 3) { flex-basis: 86px; }
+.note-orbit:nth-child(2) { animation-delay: .025s; }
+.note-orbit:nth-child(3) { animation-delay: .05s; }
+.note-orbit:nth-child(4) { animation-delay: .075s; }
+.note-orbit:nth-child(n + 5) { animation-delay: .1s; }
+.note-orbit figcaption { position: relative; max-width: 100%; margin-top: 4px; color: var(--ink); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.note-art { display: block; width: 70px; height: 70px; margin: auto; position: relative; background-image: url("/static/notes-atlas.png"); background-size: 600% 400%; background-repeat: no-repeat; transition: transform .26s cubic-bezier(.16,1,.3,1), filter .26s ease; }
+.note-art--abstract { background-image: none; color: var(--sage); }
+.note-art--abstract svg { width: 100%; height: 100%; fill: var(--wash); stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.note-art--abstract svg path + path { fill: none; opacity: .7; }
+.note-orbit:hover .note-art, .note-orbit:focus-visible .note-art { transform: translateY(-5px) rotate(-4deg) scale(1.08); filter: drop-shadow(0 7px 8px rgba(32,53,46,.09)); }
+.note-orbit:focus-visible { outline: 1px solid var(--sage); outline-offset: 5px; border-radius: 8px; }
+.note-art--0 { background-position: 0% 0.00000%; }
+.note-art--1 { background-position: 20% 0.00000%; }
+.note-art--2 { background-position: 40% 0.00000%; }
+.note-art--3 { background-position: 60% 0.00000%; }
+.note-art--4 { background-position: 80% 0.00000%; }
+.note-art--5 { background-position: 100% 0.00000%; }
+.note-art--6 { background-position: 0% 33.33333%; }
+.note-art--7 { background-position: 20% 33.33333%; }
+.note-art--8 { background-position: 40% 33.33333%; }
+.note-art--9 { background-position: 60% 33.33333%; }
+.note-art--10 { background-position: 80% 33.33333%; }
+.note-art--11 { background-position: 100% 33.33333%; }
+.note-art--12 { background-position: 0% 66.66667%; }
+.note-art--13 { background-position: 20% 66.66667%; }
+.note-art--14 { background-position: 40% 66.66667%; }
+.note-art--15 { background-position: 60% 66.66667%; }
+.note-art--16 { background-position: 80% 66.66667%; }
+.note-art--17 { background-position: 100% 66.66667%; }
+.note-art--18 { background-position: 0% 100.00000%; }
+.note-art--19 { background-position: 20% 100.00000%; }
+.note-art--20 { background-position: 40% 100.00000%; }
+.note-art--21 { background-position: 60% 100.00000%; }
+.note-art--22 { background-position: 80% 100.00000%; }
+.note-art--23 { background-position: 100% 100.00000%; }
+.note-art--second { background-image: url("/static/notes-atlas-2-cutout.png"); }
+.note-art--24 { background-position: 0% 0.00000%; }
+.note-art--25 { background-position: 20% 0.00000%; }
+.note-art--26 { background-position: 40% 0.00000%; }
+.note-art--27 { background-position: 60% 0.00000%; }
+.note-art--28 { background-position: 80% 0.00000%; }
+.note-art--29 { background-position: 100% 0.00000%; }
+.note-art--30 { background-position: 0% 33.33333%; }
+.note-art--31 { background-position: 20% 33.33333%; }
+.note-art--32 { background-position: 40% 33.33333%; }
+.note-art--33 { background-position: 60% 33.33333%; }
+.note-art--34 { background-position: 80% 33.33333%; }
+.note-art--35 { background-position: 100% 33.33333%; }
+.note-art--36 { background-position: 0% 66.66667%; }
+.note-art--37 { background-position: 20% 66.66667%; }
+.note-art--38 { background-position: 40% 66.66667%; }
+.note-art--39 { background-position: 60% 66.66667%; }
+.note-art--40 { background-position: 80% 66.66667%; }
+.note-art--41 { background-position: 100% 66.66667%; }
+.note-art--42 { background-position: 0% 100.00000%; }
+.note-art--43 { background-position: 20% 100.00000%; }
+.note-art--44 { background-position: 40% 100.00000%; }
+.note-art--45 { background-position: 60% 100.00000%; }
+.note-art--46 { background-position: 80% 100.00000%; }
+.note-art--47 { background-position: 100% 100.00000%; }
 .seasons { display: flex; flex-wrap: wrap; gap: 10px 18px; color: var(--sage); font-size: 11px; margin: 18px 0; }
 .season { display: inline-flex; align-items: center; gap: 6px; }
 .season svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.3; }
@@ -94,7 +162,7 @@ main { outline: none; padding-top: 24px; }
 .error-inline { max-width: 440px; margin: 0 auto; font-size: 12px; color: #97583d; }
 .error-inline:not(:empty) { padding: 8px 0; }
 dialog { color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 40px 20px 24px; width: calc(100% - 24px); max-width: none; max-height: 90dvh; overflow: auto; }
-dialog[open] { animation: dialog-in .2s cubic-bezier(.2,.7,.2,1) both; }
+dialog[open] { animation: dialog-in .28s cubic-bezier(.16,1,.3,1) both; }
 dialog::backdrop { background: rgba(32,53,46,.35); backdrop-filter: blur(3px); }
 .close-dialog { position: absolute; z-index: 2; top: 8px; right: 10px; min-width: 44px; min-height: 44px; padding: 8px; color: var(--sage); background: transparent; border: 0; font-size: 25px; line-height: 1; }
 dialog .perfume-name { font-size: clamp(32px, 5vw, 56px); }
@@ -104,17 +172,21 @@ dialog .perfume-name { font-size: clamp(32px, 5vw, 56px); }
 .catalog-filters input, .catalog-filters select { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 10px 0; font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
 .catalog-filters input:focus, .catalog-filters select:focus { outline: 1px solid var(--sage); outline-offset: 3px; }
 .filter-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin-top: 16px; }
-.note-filter { grid-column: 1 / -1; }
+.note-filter { grid-column: auto; }
 .text-button { color: var(--sage); background: transparent; border: 0; padding: 12px 0; min-height: 44px; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
 .catalog-status, .catalog-empty { color: var(--muted); font-size: 11px; }
 .catalog-more { display: block; margin: 22px auto 0; }
 .select-perfume { width: 100%; }
 .saving .perfume { filter: opacity(.6); transition: filter .18s ease; }
 .perfume { transition: filter .18s ease; }
+main[data-motion="back"] .perfume { animation-name: card-back; }
+.library-list { animation: content-in .24s ease both; }
 .perfume-visual, .perfume-hero, .pyramid { animation: content-in .24s ease both; }
 .perfume-hero { animation-delay: .035s; }
 .pyramid { animation-delay: .065s; }
-@keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes card-in { from { opacity: 0; transform: translateX(16px) scale(.995); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes card-back { from { opacity: 0; transform: translateX(-16px) scale(.995); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes note-arrive { from { opacity: 0; transform: translateY(11px) rotate(-3deg) scale(.9); } to { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
 @keyframes content-in { from { opacity: .25; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (min-width: 800px) {
@@ -124,8 +196,7 @@ dialog .perfume-name { font-size: clamp(32px, 5vw, 56px); }
   .perfume-visual { position: sticky; top: 24px; margin: 0; }
   .perfume-image { height: min(66vh, 660px); min-height: 320px; }
   .perfume-content { padding-top: 8px; }
-  .perfume:not(.has-visual) .pyramid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
-  .perfume:not(.has-visual) .note-row { grid-template-columns: 1fr; gap: 6px; }
+  .perfume:not(.has-visual) .pyramid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 28px; align-items: start; }
   .perfume:not(.has-visual) .description { max-width: 80ch; }
   .perfume:not(.has-visual) .reviews { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 32px; }
   .reviews .section-label { grid-column: 1 / -1; }
@@ -135,13 +206,13 @@ dialog .perfume-name { font-size: clamp(32px, 5vw, 56px); }
   .catalog-filters { display: grid; grid-template-columns: minmax(220px,1fr) minmax(0,1.5fr); gap: 0 32px; align-items: end; }
   .catalog-filters .search-label { grid-column: 1; }
   .catalog-filters input { grid-column: 1; }
-  .filter-grid { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: repeat(3,minmax(0,1fr)); margin-top: 0; gap: 20px; }
+  .filter-grid { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: repeat(4,minmax(0,1fr)); margin-top: 0; gap: 14px; }
   .note-filter { grid-column: auto; }
   .catalog-filters .text-button { grid-column: 1 / -1; justify-self: start; }
   .select-perfume { width: auto; min-width: 240px; }
 }
 @media (min-width: 1400px) { .library-list { grid-template-columns: repeat(3,minmax(0,1fr)); } }
-@media (max-width: 360px) { .brand { font-size: 12px; gap: 7px; letter-spacing: .13em; } .note-row { grid-template-columns: 60px minmax(0,1fr); gap: 8px; } }
+@media (max-width: 360px) { .brand { font-size: 12px; gap: 7px; letter-spacing: .13em; } .note-orbit { flex-basis: 65px; } .note-orbit:nth-child(4n + 3) { flex-basis: 70px; } .note-art { width: 61px; height: 61px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 html[data-theme="dark"] { color-scheme: dark; --paper: #1d2722; --ink: #e8eade; --sage: #a5b796; --muted: #a0a99b; --line: #3c493d; --wash: #303f33; --nav: rgba(29,39,34,.96); }
 html[data-theme="dark"] .brand img { filter: brightness(1.7); }

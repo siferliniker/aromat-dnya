@@ -3,13 +3,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy import delete, exists, func, inspect, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from collectors.contracts import DatasetRevisionRecord, SourceBatch
-from config import AppConfig, ScoringConfig
+from config import AppConfig, RecommendationConfig, ScoringConfig
+from scoring.discovery import choose_order, discovery_context
 from scoring.dataset import ScoreResult, score_dataset
 from scoring.engine import OpinionScore, score_opinions
 from llm.contracts import CardSummary
@@ -194,8 +195,10 @@ REACTIONS = frozenset(("want", "known", "not_for_me", "bought"))
 
 class RecommendationRepository:
     def __init__(self, engine: Engine, scoring_config: ScoringConfig, *,
-                 opinions: "OpinionRepository | None" = None):
+                 opinions: "OpinionRepository | None" = None,
+                 recommendation_config: RecommendationConfig | None = None):
         self.engine, self.scoring_config, self.opinions = engine, scoring_config, opinions
+        self.recommendation_config = recommendation_config or RecommendationConfig(exploration_ratio=0.30)
 
     @staticmethod
     def _existing(session: Session, user_id: int, local_date: date) -> ReservationResult | None:
@@ -217,35 +220,51 @@ class RecommendationRepository:
                     excluded_sent = exists().where(SentLog.user_id == user_id, SentLog.perfume_id == Perfume.id)
                     excluded_feedback = exists().where(
                         UserFeedback.user_id == user_id, UserFeedback.perfume_id == Perfume.id,
-                        UserFeedback.reaction.in_(("known", "bought", "not_for_me")),
+                        UserFeedback.reaction.in_(("want", "known", "bought", "not_for_me")),
                     )
                     perfumes = session.scalars(select(Perfume).join(Source, Perfume.source_id == Source.id).where(
                         ~excluded_sent, ~excluded_feedback, Source.enabled.is_(True),
                         Source.permission_status == "approved", Source.kind == "dataset",
                     ).order_by(Perfume.id)).all()
+                    tastes, latest, rank_max, feedback, profile = discovery_context(session, perfumes, user_id, now)
                     candidates = []
                     for perfume in perfumes:
-                        rating = session.scalar(select(RatingObservation).where(
-                            RatingObservation.perfume_id == perfume.id,
-                            RatingObservation.source_revision_id == perfume.source_revision_id,
-                            RatingObservation.source_id == perfume.source_id,
-                        ).order_by(RatingObservation.observed_at.desc(), RatingObservation.id.desc()).limit(1))
+                        rating = latest.get((perfume.id, perfume.source_id, perfume.source_revision_id))
                         score = (score_opinions(self.opinions.load_evidence(perfume.id, now=now,
-                                                                          session=session), self.scoring_config)
-                                 if self.opinions is not None else score_dataset(rating, self.scoring_config))
-                        if score.total is not None:
-                            candidates.append((score.total, -perfume.id, perfume, rating, score))
+                                                                          session=session), self.scoring_config,
+                                                taste=tastes.get(perfume.id))
+                                 if self.opinions is not None else score_dataset(rating, self.scoring_config,
+                                     taste=tastes.get(perfume.id), rank_max=rank_max))
+                        candidates.append((score.total, -perfume.id, perfume, rating, score))
                     if not candidates:
                         return ReservationResult("empty")
-                    _, _, perfume, rating, score = max(candidates, key=lambda row: row[:2])
+                    selected = choose_order(perfumes, {p.id: total for total, _, p, _, _ in candidates},
+                                            feedback, self.recommendation_config)[0]
+                    _, _, perfume, rating, score = next(c for c in candidates if c[2].id == selected.id)
                     selected_perfume_id = perfume.id
+                    taste_profile_id = None
+                    perfume_vector = None
+                    if tastes.get(perfume.id) is not None:
+                        perfume_vector = {name.casefold(): 1.0 for name in session.scalars(
+                            select(Note.name).join(PerfumeNote, PerfumeNote.note_id == Note.id).where(
+                                PerfumeNote.perfume_id == perfume.id))}
+                        taste_profile = TasteProfile(user_id=user_id, vector=profile, computed_at=now)
+                        session.add(taste_profile)
+                        session.flush()
+                        taste_profile_id = taste_profile.id
                     if self.opinions is not None:
-                        snapshot_id = self.opinions.save_score(perfume.id, score, computed_at=now, session=session)
+                        snapshot_id = self.opinions.save_score(perfume.id, score, computed_at=now,
+                            session=session, taste=tastes.get(perfume.id))
+                        saved_snapshot = session.get(ScoreSnapshot, snapshot_id)
+                        saved_snapshot.taste_profile_id = taste_profile_id
+                        saved_snapshot.perfume_vector = perfume_vector
                     else:
                         snapshot = ScoreSnapshot(
                             perfume_id=perfume.id, computed_at=now,
                             algorithm_version=score.algorithm_version,
                             scoring_config=self.scoring_config.model_dump(mode="json"), total=score.total,
+                            taste_profile_id=taste_profile_id,
+                            perfume_vector=perfume_vector,
                         )
                         session.add(snapshot)
                         session.flush()
@@ -334,6 +353,9 @@ class RecommendationRepository:
     def delete_user_data(self, user_id: int) -> dict[str, int]:
         with Session(self.engine) as session, session.begin():
             removed = {}
+            for table_name in ("miniapp_undo", "miniapp_state"):
+                if inspect(session.connection()).has_table(table_name):
+                    session.execute(text(f"DELETE FROM {table_name} WHERE user_id = :user_id"), {"user_id": user_id})
             for model in (UserFeedback, SentLog):
                 removed[model.__tablename__] = session.execute(delete(model).where(model.user_id == user_id)).rowcount
             snapshots = select(ScoreSnapshot.id).where(ScoreSnapshot.taste_profile_id.in_(

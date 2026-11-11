@@ -3,7 +3,7 @@ from math import isfinite
 
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.service import DeliveryService
 from bot.cards import visible_utf16_units
@@ -26,6 +26,7 @@ def create_dispatcher(service: DeliveryService, repository: RecommendationReposi
     if allowed_user_id <= 0:
         raise ValueError("a positive private Telegram user ID is required")
     dispatcher = Dispatcher()
+    pending_deletion: set[int] = set()
 
     def authorized(message: Message) -> bool:
         return bool(message.chat.type == "private" and message.chat.id == allowed_user_id
@@ -128,9 +129,28 @@ def create_dispatcher(service: DeliveryService, repository: RecommendationReposi
 
     async def delete_my_data(message: Message):
         if authorized(message):
+            prompt = await message.answer("Удалить реакции, историю и профиль вкуса? Это действие нельзя отменить.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="Удалить", callback_data="delete-data:confirm"),
+                    InlineKeyboardButton(text="Отмена", callback_data="delete-data:cancel")]]))
+            pending_deletion.clear()
+            pending_deletion.add(prompt.message_id)
+
+    async def confirm_deletion(query: CallbackQuery):
+        message = query.message
+        if (query.from_user.id != allowed_user_id or query.from_user.is_bot
+                or not isinstance(message, Message) or message.chat.type != "private"
+                or message.chat.id != allowed_user_id
+                or message.message_id not in pending_deletion):
+            await query.answer("Подтверждение устарело")
+            return
+        pending_deletion.discard(message.message_id)
+        if query.data == "delete-data:confirm":
             repository.delete_user_data(allowed_user_id)
-            await message.answer("Локальные реакции, журнал и профиль удалены. Рекомендации могут повторяться. "
-                                 "Сообщения в Telegram остаются. Для остановки рассылки остановите контейнер.")
+            await message.edit_text("Локальные реакции, история и профиль удалены. Сообщения в Telegram остаются.")
+        else:
+            await message.edit_text("Удаление отменено.")
+        await query.answer()
 
     async def feedback(query: CallbackQuery):
         message = query.message
@@ -151,6 +171,7 @@ def create_dispatcher(service: DeliveryService, repository: RecommendationReposi
                              ("delete_my_data", delete_my_data)):
         dispatcher.message.register(handler, Command(command))
     dispatcher.callback_query.register(feedback, F.data.startswith("feedback:"))
+    dispatcher.callback_query.register(confirm_deletion, F.data.in_({"delete-data:confirm", "delete-data:cancel"}))
     if opinion_pipeline is not None and opinion_pipeline.enabled and opinion_pipeline.telegram_adapter is not None:
         async def channel_post(message: Message):
             await opinion_pipeline.consume_telegram(message)

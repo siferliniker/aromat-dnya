@@ -170,7 +170,8 @@ async def run(check: bool = False, healthcheck: bool = False, *, refresh_opinion
         pipeline = _open_opinion_pipeline(opinions, resources, listen_to_telegram=True) if opinions else None
         bot = Bot(token)
         resources.push_async_callback(bot.session.close)
-        repository = RecommendationRepository(engine, config.scoring, opinions=opinions)
+        repository = RecommendationRepository(engine, config.scoring, opinions=opinions,
+                                              recommendation_config=config.recommendation)
         service = DeliveryService(repository, bot, timezone=config.delivery.timezone, opinion_pipeline=pipeline)
         dispatcher = create_dispatcher(service, repository, int(owner), opinion_pipeline=pipeline)
         scheduler = create_scheduler(service, config.delivery, int(owner))
@@ -197,11 +198,11 @@ def main() -> int:
         asyncio.run(run(check=args.check, healthcheck=args.healthcheck, refresh_opinions=args.refresh_opinions))
     except KeyboardInterrupt:
         return 0
-    except Exception:
+    except Exception as error:
         if args.refresh_opinions:
-            print("Opinion refresh failed. Check approved YouTube access, encrypted storage and OpenAI configuration.")
+            print(f"Opinion refresh failed ({type(error).__name__}). Check approved YouTube access, encrypted storage and OpenAI configuration.")
         else:
-            print("Bot startup or execution failed. Check configuration, encrypted storage and service access.")
+            print(f"Bot startup or execution failed ({type(error).__name__}). Check configuration, encrypted storage and service access.")
         return 1
     return 0
 

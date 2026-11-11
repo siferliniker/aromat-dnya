@@ -541,9 +541,11 @@ class OpinionRepository:
 
     def save_score(
         self, perfume_id: int, score: OpinionScore, *, computed_at: datetime, session: Session | None = None,
+        taste: float | None = None,
     ) -> int:
         with self._session(session, write=True) as session:
-            current = score_opinions(self._evidence(session, perfume_id, now=computed_at), self.config.scoring)
+            current = score_opinions(self._evidence(session, perfume_id, now=computed_at),
+                                     self.config.scoring, taste=taste)
             if score != current or session.get(Perfume, perfume_id) is None:
                 raise ValueError("score must match this perfume's current admitted evidence")
             snapshot = ScoreSnapshot(perfume_id=perfume_id, computed_at=computed_at,

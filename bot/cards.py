@@ -37,7 +37,7 @@ def feedback_keyboard(perfume_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[buttons[:2], buttons[2:]])
 
 
-def format_card(card: RecommendationCard) -> str:
+def format_card(card: RecommendationCard, *, diagnostics: bool = False) -> str:
     perfume = card.perfume
     e = escape
     lines = ["<b>Аромат дня</b>", f"<b>{e(perfume.name)}</b> — {e(perfume.house)}",
@@ -51,19 +51,20 @@ def format_card(card: RecommendationCard) -> str:
         names = [e(name) for note_level, name in card.notes if note_level == level]
         if names or level in ("top", "heart", "base", "accord"):
             lines.append(f"{label}: " + (", ".join(names) if names else "нет данных"))
-    lines.extend(("", f"Частичный балл: {card.score.total:+.3f}" if card.score.total is not None
-                  else "Балл: нет данных"))
-    for component in card.score.components:
-        lines.append(f"{LABELS[component.name]}: {component.value:.3f} × "
-                     f"{component.effective_weight:+.3f} = "
-                     f"{component.value * component.effective_weight:+.3f}")
-    if card.rating is not None and card.rating.popularity_rank is not None:
-        lines.append(f"Место по известности Scento: {card.rating.popularity_rank} "
-                     "(1 — самый известный; это не число оценок).")
-    lines.append("Отрицательный балл означает штраф за известность, а не плохой отзыв.")
-    lines.append("Нет данных: " + "; ".join(LABELS[name] for name in card.score.missing) + ".")
-    lines.append("Веса перераспределены только между доступными компонентами.")
-    if card.score.algorithm_version == "opinions-v1":
+    if diagnostics:
+        lines.extend(("", f"Частичный балл: {card.score.total:+.3f}" if card.score.total is not None
+                      else "Балл: нет данных"))
+        for component in card.score.components:
+            lines.append(f"{LABELS[component.name]}: {component.value:.3f} × "
+                         f"{component.effective_weight:+.3f} = "
+                         f"{component.value * component.effective_weight:+.3f}")
+        if card.rating is not None and card.rating.popularity_rank is not None:
+            lines.append(f"Место по известности Scento: {card.rating.popularity_rank} "
+                         "(1 — самый известный; это не число оценок).")
+        lines.append("Отрицательный балл означает штраф за известность, а не плохой отзыв.")
+        lines.append("Нет данных: " + "; ".join(LABELS[name] for name in card.score.missing) + ".")
+        lines.append("Веса перераспределены только между доступными компонентами.")
+    if card.score.algorithm_version.startswith("opinions-"):
         disagreement = card.score.disagreement
         if disagreement == "fragrantica_higher":
             lines.append("За границей любят, у нас спорно: Fragrantica выше русских отзывов.")

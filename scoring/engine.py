@@ -227,7 +227,8 @@ def _fragrantica(value: RatingEvidence, config: ScoringConfig) -> float | None:
     return fsum(score * (weight / denominator) for score, weight in signals)
 
 
-def score_opinions(inputs: ScoringInputs, config: ScoringConfig) -> OpinionScore:
+def score_opinions(inputs: ScoringInputs, config: ScoringConfig, *,
+                   taste: float | None = None) -> OpinionScore:
     """Return deterministic scores and persisted evidence references, without I/O.
 
     A null count is unknown, not zero. Partial rating/reaction pairs therefore
@@ -258,6 +259,8 @@ def score_opinions(inputs: ScoringInputs, config: ScoringConfig) -> OpinionScore
     bloggers = _current_mentions(bloggers)
 
     available: dict[str, tuple[float, Sequence[EvidenceRef]]] = {}
+    if taste is not None:
+        available["taste"] = max(0.0, min(1.0, taste)), ()
     if ratings:
         latest = max(ratings, key=_latest_key)
         fragrantica = _fragrantica(latest, config)
@@ -343,4 +346,5 @@ def score_opinions(inputs: ScoringInputs, config: ScoringConfig) -> OpinionScore
         for name in COMPONENT_NAMES if name in available and weights[name] > 0
     )
     total = fsum(component.value * component.effective_weight for component in components)
-    return OpinionScore(total, components, missing, disagreement)
+    return OpinionScore(total, components, missing, disagreement,
+                        "opinions-v2" if taste is not None else "opinions-v1")

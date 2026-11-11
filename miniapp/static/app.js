@@ -161,6 +161,69 @@
     return `<figure class="perfume-visual"><img class="perfume-image" src="${esc(url)}" alt="${esc(image.alt || `${card.house} ${card.name}`)}" decoding="async" referrerpolicy="no-referrer"></figure>`;
   }
 
+  const noteIllustrations = new Map([
+    [0, ["Bergamot", "Calabrian Bergamot"]],
+    [1, ["Lemon", "Orange", "Mandarin", "Citron", "Grapefruit", "Lime", "Citruses", "Citrus"]],
+    [2, ["Rose", "Turkish Rose", "Bulgarian Rose", "Damask Rose"]],
+    [3, ["Jasmine", "Jasmine Sambac", "White Flowers"]],
+    [4, ["Lavender", "Lavandin"]],
+    [5, ["Vanilla", "Bourbon Vanilla", "Madagascar Vanilla"]],
+    [6, ["Cardamom", "Cardamome"]],
+    [7, ["Black Pepper", "Pink Pepper", "Pepper"]],
+    [8, ["Cedar", "Cedarwood", "Cedar Wood", "Virginia Cedar"]],
+    [9, ["Sandalwood", "Australian Sandalwood"]],
+    [10, ["Patchouli", "Indonesian Patchouli Leaf"]],
+    [11, ["Vetiver", "Haitian Vetiver"]],
+    [12, ["Amber", "Labdanum", "Ciste", "Benzoin", "Resins"]],
+    [13, ["Leather", "Suede"]],
+    [14, ["Musk", "White Musk"]],
+    [15, ["Oud", "Oud Wood", "Agarwood", "Agarwood (Oud)"]],
+    [16, ["Apple", "Green Apple", "Pear"]],
+    [17, ["Red Berries", "Blackcurrant", "Black Currant", "Raspberry", "Wild Berries"]],
+    [18, ["Iris", "Orris", "Orris Root"]],
+    [19, ["Neroli", "Neroli Oil", "Orange Blossom", "Orange Flower"]],
+    [20, ["Oakmoss", "Moss"]],
+    [21, ["Incense", "Frankincense", "Olibanum"]],
+    [22, ["Tonka", "Tonka Bean", "Tonka Beans"]],
+    [23, ["Saffron"]],
+    [24, ["Nutmeg"]],
+    [25, ["Elemi"]],
+    [26, ["Pimento", "Allspice"]],
+    [27, ["Dragon fruit", "Dragonfruit", "Pitahaya"]],
+    [28, ["Cognac"]],
+    [29, ["Toffee"]],
+    [30, ["Magnolia"]],
+    [31, ["Clary Sage"]],
+    [32, ["Ginger", "Red Ginger"]],
+    [33, ["Cinnamon", "Cinnamon Bark"]],
+    [34, ["Clove", "Cloves"]],
+    [35, ["Mint", "Peppermint"]],
+    [36, ["Basil"]],
+    [37, ["Geranium"]],
+    [38, ["Orange", "Mandarin", "Blood Orange", "Mandarin Orange"]],
+    [39, ["Mango"]],
+    [40, ["Peach"]],
+    [41, ["Coconut"]],
+    [42, ["Honey"]],
+    [43, ["Coffee"]],
+    [44, ["Tobacco", "Tobacco Leaf"]],
+    [45, ["Fig"]],
+    [46, ["Ylang Ylang", "Ylang-Ylang"]],
+    [47, ["Akigalawood", "Ambrofix", "Mahonial", "Magonial", "Cashmeran", "Ambroxan", "Ambrox", "Hedione", "Ambermax", "Amberketal", "Ambrocenide", "Ambrettolide", "Muscenone", "Muscone", "Cetalox", "Georgywood", "Iso E Super", "Javanol", "Kephalis", "Norlimbanol", "Dihydromyrcenol"]],
+  ].flatMap(([index, names]) => names.map(name => [name.toLocaleLowerCase("en"), index])));
+
+  function noteMarkup(note) {
+    const name = translated(note, notes);
+    const index = noteIllustrations.get(note.toLocaleLowerCase("en"));
+    const illustration = index === undefined
+      ? `<span class="note-art note-art--abstract" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M24 66C9 44 26 15 51 20c25-13 47 12 31 35 5 27-31 39-44 20-8 1-12-3-14-9Z"/><path d="M31 69c7-15 13-29 35-36M39 54l-7-13m20 5 13 3M46 64l15 5"/><circle cx="66" cy="33" r="3"/></svg></span>`
+      : `<span class="note-art${index >= 24 ? " note-art--second" : ""} note-art--${index}" aria-hidden="true"></span>`;
+    const label = index === undefined ? `Абстрактная иллюстрация ноты «${name}»`
+      : index === 47 ? `Абстрактный образ синтетической ноты «${name}»; не фото ингредиента`
+      : `Художественная иллюстрация ингредиента или группы: ${name}`;
+    return `<figure class="note-orbit" tabindex="0" title="${esc(label)}">${illustration}<figcaption>${esc(name)}</figcaption></figure>`;
+  }
+
   function reviewsMarkup(card) {
     const reviews = Array.isArray(card.reviews)
       ? card.reviews.filter((review) => review && typeof review.text === "string" && review.text.trim() && safeUrl(review.source_url))
@@ -208,13 +271,8 @@
       ["base", "База", card.notes?.base || card.base_notes],
     ]
       .filter(([, , values]) => safeList(values).length)
-      .map(
-        ([, label, values]) =>
-          `<div class="note-row"><span class="note-label">${label}</span><div class="note-values">${safeList(
-            values,
-          )
-            .map((note) => `<span>${esc(translated(note, notes))}</span>`)
-            .join("")}</div></div>`,
+      .map(([level, label, values], index) =>
+        `<section class="note-constellation note-constellation--${level}" aria-label="${label} ноты"><header class="note-stage"><span class="note-stage-number" aria-hidden="true">0${index + 1}</span><h2>${label}</h2><span class="note-stage-line" aria-hidden="true"></span></header><div class="note-cloud">${safeList(values).map(noteMarkup).join("")}</div></section>`,
       )
       .join("");
     const seasons = safeList(card.seasons)
@@ -238,6 +296,7 @@
       card.recommendation_reason_ru ? `<p>${esc(card.recommendation_reason_ru)}</p>` : "",
       meta ? `<p>${esc(meta)}</p>` : "",
       imageSource ? `<p>Фото: <a href="${esc(imageSource)}" target="_blank" rel="noopener noreferrer">${esc(card.image.author || card.image.source_title || "Источник")} ↗</a></p>` : "",
+      '<p>Изображения нот — художественные иллюстрации ингредиентов и их групп; для редких нот используется абстрактный образ.</p>',
     ].filter(Boolean).join("");
     return `<article class="perfume${visual ? " has-visual" : ""}">${visual}<div class="perfume-content"><header class="perfume-hero"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1>${chips ? `<div class="chips">${chips}</div>` : ""}</header>${description ? `<p class="description">${esc(description)}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата">${pyramid}</section>` : ""}${seasons ? `<div class="seasons">${seasons}</div>` : ""}${reviewsMarkup(card)}${more ? `<details class="card-details"><summary>Подробнее</summary>${more}</details>` : ""}</div></article>`;
   }
@@ -277,6 +336,7 @@
       libraries = {};
       updateCounts();
       if (activeTab === "discover") {
+        main.dataset.motion = "forward";
         renderDiscover();
         window.scrollTo(0, 0);
       }
@@ -388,6 +448,7 @@
       libraries = {};
       updateCounts();
       switchTab("discover");
+      main.dataset.motion = "back";
       notify(response.applied === false ? "Эту реакцию уже нельзя отменить" : "Последняя реакция отменена");
     } catch (error) {
       error.auth ? locked(true) : notify("Не удалось отменить реакцию. Попробуйте ещё раз.");
@@ -401,6 +462,7 @@
     const options = [
       ["family", facets?.families, families],
       ["season", facets?.seasons, seasonNames],
+      ["time", facets?.times, {day:"День",evening:"Вечер",night:"Ночь",morning:"Утро"}],
       ["note", facets?.notes, notes],
     ];
     for (const [key, values, dictionary] of options) {
@@ -428,7 +490,7 @@
     const more = document.querySelector("#catalog-more");
     const status = document.querySelector("#catalog-status");
     const params = new URLSearchParams({ offset: String(reset ? 0 : catalogItems.length), limit: "30" });
-    for (const key of ["q", "family", "season", "note"]) {
+    for (const key of ["q", "family", "season", "time", "note"]) {
       const value = document.querySelector(key === "q" ? "#catalog-query" : `#catalog-${key}`).value.trim();
       if (value) params.set(key, value);
     }
@@ -482,6 +544,7 @@
   }
 
   function switchTab(tab) {
+    main.dataset.motion = "forward";
     activeTab = tab;
     document.querySelectorAll("[data-tab]").forEach((button) => {
       const active = button.dataset.tab === tab;
@@ -508,7 +571,7 @@
   searchButton.addEventListener("click", openCatalog);
   undoButton.addEventListener("click", undoReaction);
   document.querySelector("#catalog-query").addEventListener("input", () => queueCatalogSearch());
-  for (const key of ["family", "season", "note"])
+  for (const key of ["family", "season", "time", "note"])
     document.querySelector(`#catalog-${key}`).addEventListener("change", () => queueCatalogSearch(true));
   document.querySelector("#catalog-form").addEventListener("submit", event => {
     event.preventDefault();

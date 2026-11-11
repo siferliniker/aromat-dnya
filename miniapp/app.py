@@ -80,7 +80,7 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
             body["perfume_id"], body["revision"], body["reaction"]))
 
     async def catalogue(request):
-        permitted = {"q", "family", "season", "note", "offset", "limit"}
+        permitted = {"q", "family", "season", "note", "time", "offset", "limit"}
         if (set(request.query) - permitted
                 or any(len(request.query.getall(key)) != 1 for key in request.query)):
             raise ValueError("invalid query")

@@ -5,6 +5,7 @@ delivery:
 
 recommendation:
   exploration_ratio: 0.30
+  top_n: 20
 
 scoring:
   weights:

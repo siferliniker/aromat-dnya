@@ -47,6 +47,7 @@ class DeliveryConfig(ConfigModel):
 
 class RecommendationConfig(ConfigModel):
     exploration_ratio: UnitInterval
+    top_n: PositiveCount = 20
 
 
 class ScoringWeights(ConfigModel):

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "checked_on": "2026-11-11",
-  "scope": "Ручной стартовый набор для восьми ароматов. Не результат автоматического сбора или просмотра видео. Не участвует в скоринге.",
+  "scope": "Ручной проверенный набор фотографий и нескольких обзоров. Не результат массового парсинга; не участвует в скоринге.",
   "description_attribution": "Ручной русский перевод описаний закреплённого каталога Scento, CC BY 4.0. Изображения не входят в эту лицензию.",
   "image_notice": "Изображения загружаются браузером непосредственно с официальных сайтов брендов или авторской страницы Scent Grail, без локальной копии. Права принадлежат соответствующим правообладателям; источник указан в каждой карточке. Доступность зависит от сайта-источника.",
   "perfumes": {
@@ -13,12 +13,14 @@
         "author": "Acqua di Parma",
         "source_url": "https://www.acquadiparma.com/it/it/bergamotto-di-calabria/BERGAMOTTOEDTSPRAY.html"
       },
-      "reviews": [{
-        "text": "В описании своего видео автор связывает аромат с цитрусами, мохито и летним пляжем. Это аннотация описания; видео не расшифровано.",
-        "author": "Joy Amin",
-        "source_title": "Видеообзор · аннотация по описанию автора",
-        "source_url": "https://www.youtube.com/watch?v=W5scIuNq8QQ"
-      }]
+      "reviews": [
+        {
+          "text": "В описании своего видео автор связывает аромат с цитрусами, мохито и летним пляжем. Это аннотация описания; видео не расшифровано.",
+          "author": "Joy Amin",
+          "source_title": "Видеообзор · аннотация по описанию автора",
+          "source_url": "https://www.youtube.com/watch?v=W5scIuNq8QQ"
+        }
+      ]
     },
     "acqua-di-parma-colonia-essenza": {
       "description_ru": "Яркое сочетание цитрусов и нероли сменяется розмарином, розой и жасмином. В базе — ветивер, пачули, белый мускус и амбра.",
@@ -28,12 +30,14 @@
         "author": "Marin Kristic · Scent Grail",
         "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/"
       },
-      "reviews": [{
-        "text": "Marin Kristic хвалит цитрусовое начало с нероли; на своей коже отмечает 6–8 часов стойкости и умеренный шлейф.",
-        "author": "Marin Kristic · Scent Grail",
-        "source_title": "Авторский обзор · краткий пересказ",
-        "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/"
-      }]
+      "reviews": [
+        {
+          "text": "Marin Kristic хвалит цитрусовое начало с нероли; на своей коже отмечает 6–8 часов стойкости и умеренный шлейф.",
+          "author": "Marin Kristic · Scent Grail",
+          "source_title": "Авторский обзор · краткий пересказ",
+          "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/"
+        }
+      ]
     },
     "acqua-di-parma-colonia-intensa": {
       "description_ru": "Кардамон и имбирь придают остроту калабрийскому бергамоту и сицилийскому лимону. Мирт и полынь переходят в базу кожи, кедра и бензоина.",
@@ -43,12 +47,14 @@
         "author": "Acqua di Parma",
         "source_url": "https://acquadiparma.jp/product/colonia-intensa-180/"
       },
-      "reviews": [{
-        "text": "Marin Kristic отмечает лёгкое цитрусовое начало, усиливающуюся древесность и мягкую кожу; особенно рекомендует аромат для тёплых вечеров.",
-        "author": "Marin Kristic · Scent Grail",
-        "source_title": "Авторский обзор · краткий пересказ раздела Colonia Intensa",
-        "source_url": "https://scentgrail.com/news/fragrance-recommendations-for-june-2021/"
-      }]
+      "reviews": [
+        {
+          "text": "Marin Kristic отмечает лёгкое цитрусовое начало, усиливающуюся древесность и мягкую кожу; особенно рекомендует аромат для тёплых вечеров.",
+          "author": "Marin Kristic · Scent Grail",
+          "source_title": "Авторский обзор · краткий пересказ раздела Colonia Intensa",
+          "source_url": "https://scentgrail.com/news/fragrance-recommendations-for-june-2021/"
+        }
+      ]
     },
     "afnan-9pm-elixir": {
       "description_ru": "Мускатный орех и кардамон согревают начало, затем раскрываются лавандин и кожа. В финале — смолистая, мягко-сладкая база лабданума, пачули и ванили.",
@@ -58,12 +64,14 @@
         "author": "Afnan Perfumes",
         "source_url": "https://us.afnan.com/products/9-pm-elixir"
       },
-      "reviews": [{
-        "text": "Авторский видеообзор 9PM Elixir. Содержание видео ещё не расшифровано; оценка и краткий отзыв не извлечены.",
-        "author": "Chad Secrets",
-        "source_title": "Ссылка на видеообзор · без текстового резюме",
-        "source_url": "https://www.youtube.com/watch?v=uJ8wqUOENfE"
-      }]
+      "reviews": [
+        {
+          "text": "Авторский видеообзор 9PM Elixir. Содержание видео ещё не расшифровано; оценка и краткий отзыв не извлечены.",
+          "author": "Chad Secrets",
+          "source_title": "Ссылка на видеообзор · без текстового резюме",
+          "source_url": "https://www.youtube.com/watch?v=uJ8wqUOENfE"
+        }
+      ]
     },
     "afnan-rare-carbon": {
       "description_ru": "Пряный кожано-древесный аромат: корица и мускатный орех сочетаются с розой, фиалкой и кедром, а в базе звучат ветивер, сандал и амбра.",
@@ -83,12 +91,14 @@
         "author": "Afnan Perfumes",
         "source_url": "https://us.afnan.com/products/supremacy-incense"
       },
-      "reviews": [{
-        "text": "Авторский видеообзор Supremacy Incense. Содержание видео ещё не расшифровано; оценка и краткий отзыв не извлечены.",
-        "author": "Absolute Fragrance · Tinuola Ajayi",
-        "source_title": "Ссылка на видеообзор · без текстового резюме",
-        "source_url": "https://www.youtube.com/watch?v=7Fwwuc5FIis"
-      }]
+      "reviews": [
+        {
+          "text": "Авторский видеообзор Supremacy Incense. Содержание видео ещё не расшифровано; оценка и краткий отзыв не извлечены.",
+          "author": "Absolute Fragrance · Tinuola Ajayi",
+          "source_title": "Ссылка на видеообзор · без текстового резюме",
+          "source_url": "https://www.youtube.com/watch?v=7Fwwuc5FIis"
+        }
+      ]
     },
     "afnan-supremacy-not-only-intense": {
       "description_ru": "Свежие фрукты на тёмной мшистой основе: бергамот, яблоко и чёрная смородина сменяются лавандой и пачули. В финале — шафран, мускус и серая амбра.",
@@ -109,6 +119,123 @@
         "source_url": "https://us.afnan.com/products/supremacy-silver"
       },
       "reviews": []
+    },
+    "armaf-club-de-nuit-untold-parfum": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/64.png?v=1758576052&width=3000",
+        "alt": "Флакон Armaf Club de Nuit Untold",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/armaf-club-de-nuit-untold",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-club-de-nuit-milestone": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/CDN_Milestone_1.png?v=1775849162&width=2942",
+        "alt": "Флакон Armaf Club de Nuit Milestone",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/club-de-nuit-milestone-3-6-oz",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-odyssey-mandarin-sky": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/odysseymandarinsky-bottle.jpg?v=1739111516&width=1200",
+        "alt": "Флакон Armaf Odyssey Mandarin Sky",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/odyssey-mega-for-men",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-club-de-nuit-imperiale": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/65.png?v=1758576123&width=3000",
+        "alt": "Флакон Armaf Club de Nuit Imperiale",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/club-de-nuit-imperiale-34769",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-odyssey-mega": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/image-2023-05-19T085855.929.jpg?v=1739111579&width=900",
+        "alt": "Флакон Armaf Odyssey Mega",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/odyssey-mega-man",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-connoisseur-woman": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/312143.png?v=1773095792&width=1080",
+        "alt": "Флакон Armaf Connoisseur Woman",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/connoisseur-spr",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-odyssey-spectra-blue-edition": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/ODYSSEYSPECTRABLUEEDITION2_2fa3fe1f-b29a-4e52-a351-86ab93535257.png?v=1767892219&width=1080",
+        "alt": "Флакон Armaf Odyssey Spectra Blue Edition",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/odyssey-spectra-blue-edition",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-odyssey-mandarin-sky-vintage-edition": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/ODYSSEYMANDARINSKYVINTAGEEDITION2.png?v=1767891216&width=1080",
+        "alt": "Флакон Armaf Odyssey Mandarin Sky Vintage Edition",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/odyssey-mandarin-sky-vintage-edition",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-odyssey-lichi-lush": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/ODYSSEYLI_CHILUSHEDP-1.png?v=1774993705&width=1080",
+        "alt": "Флакон Armaf Odyssey Li'chi Lush",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/odyssey-lichi-lush-edp",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-connoisseur-man": {
+      "image": {
+        "url": "https://armaf.com/cdn/shop/files/armafcm_0b1cadc1-27b2-4f11-bb45-f54237b74f54.png?v=1744395852&width=1080",
+        "alt": "Флакон Armaf Connoisseur Man",
+        "author": "Armaf",
+        "source_url": "https://armaf.com/products/connoisseur-spr-1",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "afnan-turathi-blue": {
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/TurathiBlue-1.png?v=1775219549&width=2000",
+        "alt": "Флакон Afnan Turathi Blue",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/turathi-blue-homme",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "al-haramain-detour-noir": {
+      "image": {
+        "url": "https://us.alharamainperfumes.com/media/catalog/product/cache/7836f2f2fc7ebf447684856e0d3cb600/a/h/ahp1882_solo.jpg",
+        "alt": "Флакон Al Haramain Detour Noir",
+        "author": "Al Haramain Perfumes",
+        "source_url": "https://us.alharamainperfumes.com/en/detour-noir.html",
+        "source_title": "Официальная страница аромата"
+      }
+    },
+    "afnan-9pm": {
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/72.png?v=1775218737&width=2000",
+        "alt": "Флакон Afnan 9 PM Night Out",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/9pm-night-out",
+        "source_title": "Официальная страница аромата"
+      }
     }
   }
 }
