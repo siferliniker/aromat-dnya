@@ -9,6 +9,7 @@ from sqlalchemy.engine import Engine
 
 from config import AppConfig
 from miniapp.auth import AuthError, validate_init_data
+from miniapp.performance import FragellaPerformance
 from miniapp.repository import DEFAULT_CATALOG_PATH, IMAGE_ORIGINS, MiniAppRepository, REACTIONS
 
 
@@ -23,10 +24,12 @@ SECURITY_HEADERS = {
 
 
 def create_app(*, engine: Engine, bot_token: str, owner_id: int,
-               config: AppConfig | None = None, catalog_path: str | Path = DEFAULT_CATALOG_PATH) -> web.Application:
+               config: AppConfig | None = None, catalog_path: str | Path = DEFAULT_CATALOG_PATH,
+               performance: FragellaPerformance | None = None) -> web.Application:
     if type(owner_id) is not int or owner_id <= 0 or not isinstance(bot_token, str) or not bot_token:
         raise ValueError("Telegram owner credentials are required")
     repository = MiniAppRepository(engine, config, catalog_path)
+    performance = performance or FragellaPerformance("", engine)
 
     @web.middleware
     async def guard(request, handler):
@@ -60,12 +63,25 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
         return web.json_response({"status": "ok"})
 
     async def state(_request):
-        return web.json_response(await asyncio.to_thread(repository.state, owner_id))
+        return await card_response(await asyncio.to_thread(repository.state, owner_id))
+
+    async def card_response(result):
+        if result.get("current"):
+            try:
+                result["current"] = await performance.enrich(result["current"])
+            except Exception:
+                # Optional provider data must never turn a saved reaction into an apparent failure.
+                pass
+        return web.json_response(result)
+
+    def cached_response(result):
+        result["items"] = [performance.cached(card) for card in result.get("items", [])]
+        return web.json_response(result)
 
     async def library(request):
         if len(request.query.getall("kind", [])) != 1 or request.query.get("kind") not in ("wishlist", "known"):
             raise ValueError("invalid library")
-        return web.json_response(await asyncio.to_thread(repository.library, owner_id, request.query["kind"]))
+        return cached_response(await asyncio.to_thread(repository.library, owner_id, request.query["kind"]))
 
     async def react(request):
         if request.content_type != "application/json":
@@ -76,7 +92,7 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
                 or type(body["revision"]) is not int or body["revision"] < 0
                 or not isinstance(body["reaction"], str) or body["reaction"] not in REACTIONS):
             raise ValueError("invalid reaction")
-        return web.json_response(await asyncio.to_thread(repository.react, owner_id,
+        return await card_response(await asyncio.to_thread(repository.react, owner_id,
             body["perfume_id"], body["revision"], body["reaction"]))
 
     async def catalogue(request):
@@ -90,7 +106,7 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
             if not raw.isascii() or not raw.isdigit() or len(raw) > 5:
                 raise ValueError("invalid pagination")
             values[key] = int(raw)
-        return web.json_response(await asyncio.to_thread(repository.catalogue, owner_id, **values))
+        return cached_response(await asyncio.to_thread(repository.catalogue, owner_id, **values))
 
     async def selection(request):
         if request.content_type != "application/json":
@@ -100,7 +116,7 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
                 or type(body["perfume_id"]) is not int or body["perfume_id"] <= 0
                 or type(body["revision"]) is not int or body["revision"] < 0):
             raise ValueError("invalid selection")
-        return web.json_response(await asyncio.to_thread(repository.select_perfume, owner_id,
+        return await card_response(await asyncio.to_thread(repository.select_perfume, owner_id,
             body["perfume_id"], body["revision"]))
 
     async def undo(request):
@@ -110,13 +126,27 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
         if (not isinstance(body, dict) or set(body) != {"revision"}
                 or type(body["revision"]) is not int or body["revision"] < 0):
             raise ValueError("invalid undo")
-        return web.json_response(await asyncio.to_thread(repository.undo, owner_id, body["revision"]))
+        return await card_response(await asyncio.to_thread(repository.undo, owner_id, body["revision"]))
+
+    async def performance_detail(request):
+        raw = request.match_info["perfume_id"]
+        if not raw.isascii() or not raw.isdigit() or len(raw) > 10 or int(raw) <= 0:
+            raise ValueError("invalid perfume")
+        card = await asyncio.to_thread(repository.detail, int(raw))
+        if card is None:
+            raise web.HTTPNotFound()
+        try:
+            card = await performance.enrich(card)
+        except Exception:
+            pass
+        return web.json_response({"performance": card.get("performance")})
 
     app.router.add_get("/", shell)
     app.router.add_get("/health", health)
     app.router.add_get("/api/state", state)
     app.router.add_get("/api/library", library)
     app.router.add_get("/api/catalog", catalogue)
+    app.router.add_get("/api/performance/{perfume_id}", performance_detail)
     app.router.add_post("/api/react", react)
     app.router.add_post("/api/select", selection)
     app.router.add_post("/api/undo", undo)

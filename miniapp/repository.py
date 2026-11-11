@@ -57,7 +57,15 @@ def _load_content(path: Path) -> dict:
                    and all(isinstance(review.get(key), str) and review[key]
                            for key in ("text", "author", "source_title"))]
         description_ru = entry.get("description_ru")
+        performance = entry.get("performance")
+        if not (isinstance(performance, dict) and _https_url(performance.get("source_url"))
+                and performance.get("basis") == "reviewer_report"
+                and isinstance(performance.get("source_name"), str)
+                and all(performance.get(k) is None or isinstance(performance.get(k), str)
+                        for k in ("longevity", "sillage"))):
+            performance = None
         result[external_id] = {"image": image, "reviews": reviews,
+                               "performance": performance,
                                "description_ru": description_ru if isinstance(description_ru, str) else ""}
     return result
 
@@ -162,7 +170,8 @@ class MiniAppRepository:
                 "times_of_day": original.get("times_of_day") or [],
                 "release_year": perfume.release_year, "perfumers": perfume.perfumers or [],
                 "description_ru": content.get("description_ru") or "",
-                "image": content.get("image"), "reviews": content.get("reviews") or []}
+                "image": content.get("image"), "reviews": content.get("reviews") or [],
+                "performance": content.get("performance")}
 
     def _features(self, perfume: Perfume) -> set[str]:
         item = self.catalog.get(perfume.external_id, {})
@@ -384,3 +393,8 @@ class MiniAppRepository:
                 if feedback.perfume_id in eligible:
                     items.append(self._card(eligible[feedback.perfume_id]) | {"reaction": feedback.reaction})
             return {"kind": kind, "items": items, "count": len(items)}
+
+    def detail(self, perfume_id: int) -> dict | None:
+        with Session(self.engine) as session:
+            perfume = next((p for p in self._catalogue(session) if p.id == perfume_id), None)
+            return self._card(perfume) if perfume else None

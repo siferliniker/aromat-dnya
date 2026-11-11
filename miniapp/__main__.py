@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from config import load_config
 from miniapp.app import create_app
+from miniapp.performance import FragellaPerformance
 from storage.models import Perfume
 from storage.runtime import create_encrypted_engine
 
@@ -30,7 +31,8 @@ def main() -> int:
             if connection.scalar(select(Perfume.id).limit(1)) is None:
                 raise ValueError("catalogue unavailable")
         config = load_config(os.environ.get("CONFIG_PATH", "config.yaml"))
-        app = create_app(engine=engine, bot_token=token, owner_id=int(owner), config=config)
+        app = create_app(engine=engine, bot_token=token, owner_id=int(owner), config=config,
+                         performance=FragellaPerformance(os.environ.get("FRAGELLA_API_KEY", ""), engine))
         web.run_app(app, host="0.0.0.0", port=8000, access_log=None,
                     print=lambda _message: print("Ароматия Mini App готова на порту 8000."))
         return 0

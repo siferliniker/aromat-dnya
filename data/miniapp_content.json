@@ -37,7 +37,17 @@
           "source_title": "Авторский обзор · краткий пересказ",
           "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/"
         }
-      ]
+      ],
+      "performance": {
+        "longevity": "6–8 часов",
+        "sillage": "Умеренный",
+        "diffusion_type": "sillage",
+        "source_name": "Marin Kristic · Scent Grail",
+        "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/",
+        "basis": "reviewer_report",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "sample_size": null
+      }
     },
     "acqua-di-parma-colonia-intensa": {
       "description_ru": "Кардамон и имбирь придают остроту калабрийскому бергамоту и сицилийскому лимону. Мирт и полынь переходят в базу кожи, кедра и бензоина.",
@@ -54,7 +64,17 @@
           "source_title": "Авторский обзор · краткий пересказ раздела Colonia Intensa",
           "source_url": "https://scentgrail.com/news/fragrance-recommendations-for-june-2021/"
         }
-      ]
+      ],
+      "performance": {
+        "longevity": "6–8 часов",
+        "sillage": "Умеренная",
+        "diffusion_type": "projection",
+        "source_name": "Marin Kristic · Scent Grail",
+        "source_url": "https://scentgrail.com/news/fragrance-recommendations-for-june-2021/",
+        "basis": "reviewer_report",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "sample_size": null
+      }
     },
     "afnan-9pm-elixir": {
       "description_ru": "Мускатный орех и кардамон согревают начало, затем раскрываются лавандин и кожа. В финале — смолистая, мягко-сладкая база лабданума, пачули и ванили.",
@@ -235,6 +255,18 @@
         "author": "Afnan Perfumes",
         "source_url": "https://us.afnan.com/products/9pm-night-out",
         "source_title": "Официальная страница аромата"
+      }
+    },
+    "armaf-club-de-nuit-woman": {
+      "performance": {
+        "longevity": "10–12 часов",
+        "sillage": "Выраженная",
+        "diffusion_type": "projection",
+        "source_name": "Marin Kristic · Scent Grail",
+        "source_url": "https://scentgrail.com/perfume-lists/valentines-day-perfume-gifts-for-her/",
+        "basis": "reviewer_report",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "sample_size": null
       }
     }
   }

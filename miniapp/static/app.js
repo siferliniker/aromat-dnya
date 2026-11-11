@@ -289,6 +289,7 @@
       .filter(Boolean)
       .join(" · ");
     const description = typeof card.description_ru === "string" ? card.description_ru.trim() : "";
+    const performance = performanceMarkup(card.performance);
     const visual = imageMarkup(card);
     const imageSource = safeUrl(card.image?.source_url);
     const more = [
@@ -298,7 +299,15 @@
       imageSource ? `<p>Фото: <a href="${esc(imageSource)}" target="_blank" rel="noopener noreferrer">${esc(card.image.author || card.image.source_title || "Источник")} ↗</a></p>` : "",
       '<p>Изображения нот — художественные иллюстрации ингредиентов и их групп; для редких нот используется абстрактный образ.</p>',
     ].filter(Boolean).join("");
-    return `<article class="perfume${visual ? " has-visual" : ""}">${visual}<div class="perfume-content"><header class="perfume-hero"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1>${chips ? `<div class="chips">${chips}</div>` : ""}</header>${description ? `<p class="description">${esc(description)}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата">${pyramid}</section>` : ""}${seasons ? `<div class="seasons">${seasons}</div>` : ""}${reviewsMarkup(card)}${more ? `<details class="card-details"><summary>Подробнее</summary>${more}</details>` : ""}</div></article>`;
+    return `<article class="perfume${visual ? " has-visual" : ""}">${visual}<div class="perfume-content"><header class="perfume-hero"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1>${chips ? `<div class="chips">${chips}</div>` : ""}</header>${performance}${description ? `<p class="description">${esc(description)}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата">${pyramid}</section>` : ""}${seasons ? `<div class="seasons">${seasons}</div>` : ""}${reviewsMarkup(card)}${more ? `<details class="card-details"><summary>Подробнее</summary>${more}</details>` : ""}</div></article>`;
+  }
+
+  function performanceMarkup(data) {
+    if (!data || !safeUrl(data.source_url) || (!data.longevity && !data.sillage)) return "";
+    const author = data.basis === "reviewer_report";
+    const confidence = {high: "высокая", medium: "средняя", low: "низкая"}[data.confidence];
+    const title = [data.observed_at ? `Получено: ${data.observed_at.slice(0,10)}` : "", confidence ? `Уверенность источника: ${confidence}` : ""].filter(Boolean).join(". ");
+    return `<section class="performance" aria-label="Стойкость и распространение аромата">${data.longevity ? `<div class="performance-metric"><span>Стойкость</span><strong>${esc(data.longevity)}</strong></div>` : ""}${data.sillage ? `<div class="performance-metric"><span>${data.diffusion_type === "projection" ? "Проекция" : "Шлейф"}</span><strong>${esc(data.sillage)}</strong></div>` : ""}<a class="performance-source" href="${esc(safeUrl(data.source_url))}" target="_blank" rel="noopener noreferrer" title="${esc(title)}">${author ? "По опыту автора" : "Оценка источника"} · ${esc(data.source_name)} ↗</a></section>`;
   }
 
   function renderDiscover() {
@@ -394,6 +403,7 @@
 
   function showDetails(card, fromCatalog = false) {
     const content = document.querySelector("#details-content");
+    content.dataset.perfumeId = String(card.id);
     content.innerHTML = cardMarkup(card) + (fromCatalog && card.can_select
       ? '<button type="button" class="plain-button select-perfume">Выбрать для знакомства</button>'
       : `<p class="dialog-reaction">${esc(labels[card.reaction] || (fromCatalog ? "Аромат уже в вашей истории" : ""))}</p>`);
@@ -401,6 +411,17 @@
     content.querySelector(".select-perfume")?.addEventListener("click", () => selectPerfume(card));
     dialog.showModal();
     dialog.scrollTop = 0;
+    if (!card.performance) {
+      api(`/api/performance/${card.id}`).then(data => {
+        if (!data.performance) return;
+        card.performance = data.performance;
+        if (!dialog.open || content.dataset.perfumeId !== String(card.id)) return;
+        if (!content.querySelector(".performance"))
+          content.querySelector(".perfume-hero")?.insertAdjacentHTML("afterend", performanceMarkup(data.performance));
+      }).catch(error => {
+        if (error.auth) { dialog.close(); catalogDialog.close(); locked(true); }
+      });
+    }
     try { webapp?.BackButton?.show(); } catch (_) {}
   }
 
