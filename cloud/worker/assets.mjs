@@ -59,6 +59,7 @@ async function hydrateAsset(env, asset) {
   const pending = (async () => {
     const controller = new AbortController();
     const deadline = setTimeout(() => controller.abort(), 10_000);
+    let stage = "source-fetch";
     try {
       const response = await fetch(asset.source, { signal: controller.signal, redirect: "error" });
       if (!response.ok || !response.body) throw new Error("AssetSourceUnavailable");
@@ -67,6 +68,7 @@ async function hydrateAsset(env, asset) {
         await response.body.cancel();
         throw new Error("AssetSizeMismatch");
       }
+      stage = "source-read";
       const reader = response.body.getReader();
       const bytes = new Uint8Array(asset.size);
       let offset = 0;
@@ -81,14 +83,22 @@ async function hydrateAsset(env, asset) {
         offset += value.byteLength;
       }
       if (offset !== asset.size) throw new Error("AssetSizeMismatch");
+      stage = "digest";
       const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
       const hash = Array.from(digest, value => value.toString(16).padStart(2, "0")).join("");
       if (hash !== asset.sha256) throw new Error("AssetDigestMismatch");
+      stage = "storage-write";
       await env.BUCKET.put(asset.key, bytes, {
         httpMetadata: { contentType: asset.type, cacheControl: "public, max-age=31536000, immutable" },
         customMetadata: { sha256: hash },
       });
       return bytes;
+    } catch (error) {
+      // Fixed phase labels diagnose hosting failures without logging URLs or payload.
+      const failure = new Error("AssetUnavailable");
+      failure.assetStage = stage;
+      failure.causeType = error?.name || "Error";
+      throw failure;
     } finally {
       clearTimeout(deadline);
     }
@@ -100,9 +110,17 @@ async function hydrateAsset(env, asset) {
 export async function warmAssets(env, assets) {
   if (!env.BUCKET) return;
   const results = await Promise.allSettled(Object.values(assets).filter(asset => asset.key).map(async asset => {
-    if (!await env.BUCKET.head(asset.key)) await hydrateAsset(env, asset);
+    let stored;
+    try { stored = await env.BUCKET.head(asset.key); }
+    catch (error) {
+      const failure = new Error("AssetStorageUnavailable");
+      failure.assetStage = "storage-head";
+      failure.causeType = error?.name || "Error";
+      throw failure;
+    }
+    if (!stored) await hydrateAsset(env, asset);
   }));
   for (const result of results) {
-    if (result.status === "rejected") console.error("Asset warm failed", result.reason?.name || "Error");
+    if (result.status === "rejected") console.error("Asset warm failed", result.reason?.assetStage || "unknown", result.reason?.causeType || result.reason?.name || "Error");
   }
 }
