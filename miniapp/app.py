@@ -79,10 +79,46 @@ def create_app(*, engine: Engine, bot_token: str, owner_id: int,
         return web.json_response(await asyncio.to_thread(repository.react, owner_id,
             body["perfume_id"], body["revision"], body["reaction"]))
 
+    async def catalogue(request):
+        permitted = {"q", "family", "season", "note", "offset", "limit"}
+        if (set(request.query) - permitted
+                or any(len(request.query.getall(key)) != 1 for key in request.query)):
+            raise ValueError("invalid query")
+        values = dict(request.query)
+        for key, default in (("offset", 0), ("limit", 30)):
+            raw = values.get(key, str(default))
+            if not raw.isascii() or not raw.isdigit() or len(raw) > 5:
+                raise ValueError("invalid pagination")
+            values[key] = int(raw)
+        return web.json_response(await asyncio.to_thread(repository.catalogue, owner_id, **values))
+
+    async def selection(request):
+        if request.content_type != "application/json":
+            raise ValueError("invalid content type")
+        body = await request.json()
+        if (not isinstance(body, dict) or set(body) != {"perfume_id", "revision"}
+                or type(body["perfume_id"]) is not int or body["perfume_id"] <= 0
+                or type(body["revision"]) is not int or body["revision"] < 0):
+            raise ValueError("invalid selection")
+        return web.json_response(await asyncio.to_thread(repository.select_perfume, owner_id,
+            body["perfume_id"], body["revision"]))
+
+    async def undo(request):
+        if request.content_type != "application/json":
+            raise ValueError("invalid content type")
+        body = await request.json()
+        if (not isinstance(body, dict) or set(body) != {"revision"}
+                or type(body["revision"]) is not int or body["revision"] < 0):
+            raise ValueError("invalid undo")
+        return web.json_response(await asyncio.to_thread(repository.undo, owner_id, body["revision"]))
+
     app.router.add_get("/", shell)
     app.router.add_get("/health", health)
     app.router.add_get("/api/state", state)
     app.router.add_get("/api/library", library)
+    app.router.add_get("/api/catalog", catalogue)
     app.router.add_post("/api/react", react)
+    app.router.add_post("/api/select", selection)
+    app.router.add_post("/api/undo", undo)
     app.router.add_static("/static/", STATIC_PATH, show_index=False, follow_symlinks=False)
     return app

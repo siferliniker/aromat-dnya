@@ -666,3 +666,24 @@ html[data-theme="dark"] .brand img {
   font-size: 10px;
   line-height: 1.7;
 }
+
+[hidden] { display: none !important; }
+.header-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; border: 0; padding: 10px; min-width: 44px; min-height: 44px; background: transparent; color: var(--sage); }
+.icon-button:hover { color: var(--ink); }
+.icon-button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.recommendation-reason { color: var(--sage); font-size: 11px; line-height: 1.7; margin: 0 0 22px; }
+.recommendation-reason span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 4px; }
+#catalog-dialog { padding-top: 34px; }
+.catalog-head .library-title { margin-bottom: 20px; }
+.catalog-filters { padding-bottom: 16px; }
+.catalog-filters label { display: block; color: var(--muted); font-size: 10px; }
+.catalog-filters input, .catalog-filters select { display: block; width: 100%; min-width: 0; color: var(--ink); background: var(--paper); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 11px 0; font: inherit; font-size: 13px; min-height: 44px; }
+.catalog-filters input:focus, .catalog-filters select:focus { outline: 1px solid var(--sage); outline-offset: 3px; }
+.filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; margin-top: 17px; }
+.note-filter { grid-column: 1 / -1; }
+.text-button { color: var(--sage); background: transparent; padding: 10px 0; border: 0; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
+.catalog-status, .catalog-empty { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.catalog-more { display: block; margin: 22px auto 0; }
+.select-perfume { width: 100%; margin-top: 24px; }
+@media(max-width: 380px) { .header { gap: 8px; } .brand { font-size: 13px; gap: 7px; letter-spacing: .16em; } .header-actions { gap: 0; } .icon-button { min-width: 40px; padding: 8px; } }

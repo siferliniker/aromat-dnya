@@ -22,9 +22,11 @@
             >АРОМАТИЯ</span
           ></a
         >
-        <span class="header-note" id="header-note"
-          >Личное знакомство с ароматами</span
-        >
+        <span class="sr-only" id="header-note">Личное знакомство с ароматами</span>
+        <div class="header-actions">
+          <button type="button" id="undo-reaction" class="icon-button" aria-label="Отменить последнюю реакцию" title="Отменить последнюю реакцию" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4 3 9l5 5M3 9h10a7 7 0 0 1 0 14" transform="translate(0 -3)"/></svg></button>
+          <button type="button" id="open-catalog" class="icon-button" aria-label="Поиск ароматов" title="Поиск ароматов" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+        </div>
       </header>
       <main id="main" tabindex="-1">
         <section class="message-panel initial-loading" aria-live="polite">
@@ -80,6 +82,23 @@
       </div>
     </nav>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <dialog id="catalog-dialog" aria-labelledby="catalog-title">
+      <button type="button" class="close-dialog" aria-label="Закрыть поиск">×</button>
+      <header class="catalog-head"><span class="eyebrow">Найдите своё звучание</span><h1 id="catalog-title" class="library-title">Каталог</h1></header>
+      <form id="catalog-form" class="catalog-filters" role="search">
+        <label class="search-label" for="catalog-query">Название или бренд</label>
+        <input id="catalog-query" type="search" maxlength="120" placeholder="Например, Acqua di Parma" autocomplete="off" />
+        <div class="filter-grid">
+          <label>Семейство<select id="catalog-family"><option value="">Все семейства</option></select></label>
+          <label>Сезон<select id="catalog-season"><option value="">Любой сезон</option></select></label>
+          <label class="note-filter">Нота<select id="catalog-note"><option value="">Любая нота</option></select></label>
+        </div>
+        <button type="button" class="text-button" id="catalog-reset">Сбросить фильтры</button>
+      </form>
+      <p id="catalog-status" class="catalog-status" role="status" aria-live="polite"></p>
+      <div id="catalog-results"></div>
+      <button type="button" class="plain-button catalog-more" id="catalog-more" hidden>Показать ещё</button>
+    </dialog>
     <dialog id="details-dialog" aria-label="Подробности об аромате">
       <button type="button" class="close-dialog" aria-label="Закрыть">×</button>
       <div id="details-content"></div>

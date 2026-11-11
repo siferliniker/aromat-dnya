@@ -5,6 +5,11 @@
   const initData = webapp?.initData || "";
   const main = document.querySelector("#main");
   const dialog = document.querySelector("#details-dialog");
+  const catalogDialog = document.querySelector("#catalog-dialog");
+  const undoButton = document.querySelector("#undo-reaction");
+  const searchButton = document.querySelector("#open-catalog");
+  let catalogItems = [], catalogCount = 0, catalogSequence = 0,
+    catalogTimer, catalogFacetsReady = false, catalogBusy = false;
   let state = null,
     activeTab = "discover",
     pending = false,
@@ -110,12 +115,19 @@
   }
 
   function updateCounts() {
+    undoButton.hidden = !state?.can_undo;
+    undoButton.disabled = pending || !state?.can_undo;
+    searchButton.disabled = !state;
     for (const key of ["wishlist", "known"])
       document.querySelector(`#${key}-count`).textContent =
         state?.counts?.[key] || "";
   }
 
   function locked(expired = false) {
+    state = null;
+    updateCounts();
+    if (dialog.open) dialog.close();
+    if (catalogDialog.open) catalogDialog.close();
     document.querySelector(".bottom-nav").hidden = true;
     document.querySelector("#header-note").textContent =
       "Ваше личное пространство";
@@ -228,7 +240,7 @@
       .join(" · ");
     const hasTranslation = typeof card.description_ru === "string" && card.description_ru.trim();
     const description = hasTranslation ? card.description_ru : catalogueDescription(card);
-    return `<article class="perfume">${imageMarkup(card)}<div class="perfume-hero"><div class="hero-copy"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1><div class="chips">${chips}</div></div></div>${description ? `<p class="description">${esc(description)}${hasTranslation ? "" : '<span class="description-credit">По нотам каталога</span>'}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата"><h2 class="section-label">Как раскрывается аромат</h2>${pyramid}${seasons ? `<div class="seasons">${seasons}</div>` : ""}</section>` : seasons ? `<div class="seasons">${seasons}</div>` : ""}${meta ? `<p class="meta-line">${esc(meta)}</p>` : ""}${reviewsMarkup(card)}</article>`;
+    return `<article class="perfume">${imageMarkup(card)}<div class="perfume-hero"><div class="hero-copy"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1><div class="chips">${chips}</div></div></div>${card.recommendation_reason_ru ? `<p class="recommendation-reason"><span>Почему этот аромат</span>${esc(card.recommendation_reason_ru)}</p>` : ""}${description ? `<p class="description">${esc(description)}${hasTranslation ? "" : '<span class="description-credit">По нотам каталога</span>'}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата"><h2 class="section-label">Как раскрывается аромат</h2>${pyramid}${seasons ? `<div class="seasons">${seasons}</div>` : ""}</section>` : seasons ? `<div class="seasons">${seasons}</div>` : ""}${meta ? `<p class="meta-line">${esc(meta)}</p>` : ""}${reviewsMarkup(card)}</article>`;
   }
 
   function renderDiscover() {
@@ -251,6 +263,7 @@
   async function react(reaction) {
     if (pending || !state?.current) return;
     pending = true;
+    updateCounts();
     main.classList.add("saving");
     main
       .querySelectorAll("[data-reaction]")
@@ -283,6 +296,7 @@
       }
     } finally {
       pending = false;
+      updateCounts();
       main.classList.remove("saving");
       main
         .querySelectorAll("[data-reaction]")
@@ -310,20 +324,162 @@
       main.querySelectorAll("[data-detail]").forEach((button) =>
         button.addEventListener("click", () => {
           const card = items[Number(button.dataset.detail)];
-          document.querySelector("#details-content").innerHTML =
-            cardMarkup(card) +
-            `<p class="dialog-reaction">${esc(labels[card.reaction])}</p>`;
-          checkImages(document.querySelector("#details-content"));
-          dialog.showModal();
-          try {
-            webapp?.BackButton?.show();
-          } catch (_) {}
+          showDetails(card);
         }),
       );
     } catch (error) {
       if (activeTab === kind)
         error.auth ? locked(true) : errorPanel(() => renderLibrary(kind));
     }
+  }
+
+  function showDetails(card, fromCatalog = false) {
+    const content = document.querySelector("#details-content");
+    content.innerHTML = cardMarkup(card) + (fromCatalog && card.can_select
+      ? '<button type="button" class="plain-button select-perfume">Выбрать для знакомства</button>'
+      : `<p class="dialog-reaction">${esc(labels[card.reaction] || (fromCatalog ? "Аромат уже в вашей истории" : ""))}</p>`);
+    checkImages(content);
+    content.querySelector(".select-perfume")?.addEventListener("click", () => selectPerfume(card));
+    dialog.showModal();
+    dialog.scrollTop = 0;
+    try { webapp?.BackButton?.show(); } catch (_) {}
+  }
+
+  async function selectPerfume(card) {
+    if (pending || !state) return;
+    pending = true;
+    updateCounts();
+    const button = dialog.querySelector(".select-perfume");
+    if (button) button.disabled = true;
+    try {
+      const response = await api("/api/select", { perfume_id: card.id, revision: state.revision });
+      state = response.applied === false ? await api("/api/state") : response;
+      libraries = {};
+      dialog.close();
+      catalogDialog.close();
+      switchTab("discover");
+      notify(response.applied === false ? "Подбор обновился. Выберите аромат заново." : "Аромат выбран");
+    } catch (error) {
+      if (error.auth) locked(true);
+      else {
+        let message = document.querySelector("#selection-error");
+        if (!message) {
+          message = document.createElement("p");
+          message.id = "selection-error";
+          message.className = "error-inline";
+          message.setAttribute("role", "alert");
+          document.querySelector("#details-content").append(message);
+        }
+        message.textContent = "Не удалось выбрать аромат. Попробуйте ещё раз.";
+      }
+    } finally {
+      pending = false;
+      updateCounts();
+      if (button?.isConnected) button.disabled = false;
+    }
+  }
+
+  async function undoReaction() {
+    if (pending || !state?.can_undo) return;
+    pending = true;
+    updateCounts();
+    try {
+      const response = await api("/api/undo", { revision: state.revision });
+      state = response.applied === false ? await api("/api/state") : response;
+      libraries = {};
+      updateCounts();
+      switchTab("discover");
+      notify(response.applied === false ? "Эту реакцию уже нельзя отменить" : "Последняя реакция отменена");
+    } catch (error) {
+      error.auth ? locked(true) : notify("Не удалось отменить реакцию. Попробуйте ещё раз.");
+    } finally {
+      pending = false;
+      updateCounts();
+    }
+  }
+
+  function populateFacets(facets) {
+    const options = [
+      ["family", facets?.families, families],
+      ["season", facets?.seasons, seasonNames],
+      ["note", facets?.notes, notes],
+    ];
+    for (const [key, values, dictionary] of options) {
+      const select = document.querySelector(`#catalog-${key}`);
+      for (const value of safeList(values).sort((a, b) => translated(a, dictionary).localeCompare(translated(b, dictionary), "ru"))) {
+        select.add(new Option(translated(value, dictionary), value));
+      }
+    }
+    catalogFacetsReady = true;
+  }
+
+  function renderCatalogResults() {
+    const results = document.querySelector("#catalog-results");
+    results.innerHTML = catalogItems.length
+      ? `<div class="library-list">${catalogItems.map((card, index) => `<button type="button" class="library-row" data-catalog-detail="${index}"><span><span class="row-house">${esc(card.house)}</span><span class="row-name">${esc(card.name)}</span><span class="row-detail">${esc([card.family ? translated(card.family, families) : "", labels[card.reaction] || ""].filter(Boolean).join(" · "))}</span></span><span class="row-arrow" aria-hidden="true">↗</span></button>`).join("")}</div>`
+      : '<p class="catalog-empty">Ничего не найдено. Попробуйте другую ноту или уберите часть фильтров.</p>';
+    results.querySelectorAll("[data-catalog-detail]").forEach(button => {
+      button.addEventListener("click", () => showDetails(catalogItems[Number(button.dataset.catalogDetail)], true));
+    });
+    document.querySelector("#catalog-status").textContent = `Найдено: ${catalogCount} · показано ${catalogItems.length}`;
+    document.querySelector("#catalog-more").hidden = catalogItems.length >= catalogCount;
+  }
+
+  async function loadCatalog(reset = true, sequence = ++catalogSequence) {
+    const more = document.querySelector("#catalog-more");
+    const status = document.querySelector("#catalog-status");
+    const params = new URLSearchParams({ offset: String(reset ? 0 : catalogItems.length), limit: "30" });
+    for (const key of ["q", "family", "season", "note"]) {
+      const value = document.querySelector(key === "q" ? "#catalog-query" : `#catalog-${key}`).value.trim();
+      if (value) params.set(key, value);
+    }
+    catalogBusy = true;
+    more.disabled = true;
+    if (reset) {
+      catalogItems = [];
+      document.querySelector("#catalog-results").innerHTML = "";
+      more.hidden = true;
+    }
+    status.textContent = "Ищем ароматы…";
+    try {
+      const data = await api(`/api/catalog?${params}`);
+      if (sequence !== catalogSequence || !catalogDialog.open) return;
+      if (!catalogFacetsReady) populateFacets(data.facets);
+      catalogItems = reset ? data.items : catalogItems.concat(data.items);
+      catalogCount = data.count;
+      renderCatalogResults();
+    } catch (error) {
+      if (sequence !== catalogSequence || !catalogDialog.open) return;
+      if (error.auth) locked(true);
+      else {
+        status.textContent = "Не удалось загрузить каталог.";
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "text-button";
+        retry.textContent = "Попробовать снова";
+        retry.addEventListener("click", () => loadCatalog(reset));
+        document.querySelector("#catalog-results").append(retry);
+      }
+    } finally {
+      if (sequence === catalogSequence) {
+        catalogBusy = false;
+        more.disabled = false;
+      }
+    }
+  }
+
+  function queueCatalogSearch(immediate = false) {
+    clearTimeout(catalogTimer);
+    const sequence = ++catalogSequence;
+    catalogTimer = setTimeout(() => loadCatalog(true, sequence), immediate ? 0 : 250);
+  }
+
+  function openCatalog() {
+    if (!state) return;
+    catalogDialog.showModal();
+    try { webapp?.BackButton?.show(); } catch (_) {}
+    loadCatalog();
+    document.querySelector("#catalog-query").focus();
   }
 
   function switchTab(tab) {
@@ -350,16 +506,41 @@
     }
   }
 
+  searchButton.addEventListener("click", openCatalog);
+  undoButton.addEventListener("click", undoReaction);
+  document.querySelector("#catalog-query").addEventListener("input", () => queueCatalogSearch());
+  for (const key of ["family", "season", "note"])
+    document.querySelector(`#catalog-${key}`).addEventListener("change", () => queueCatalogSearch(true));
+  document.querySelector("#catalog-form").addEventListener("submit", event => {
+    event.preventDefault();
+    queueCatalogSearch(true);
+  });
+  document.querySelector("#catalog-reset").addEventListener("click", () => {
+    document.querySelector("#catalog-form").reset();
+    queueCatalogSearch(true);
+  });
+  document.querySelector("#catalog-more").addEventListener("click", () => {
+    if (!catalogBusy) loadCatalog(false);
+  });
+  catalogDialog.querySelector(".close-dialog").addEventListener("click", () => catalogDialog.close());
+  catalogDialog.addEventListener("click", event => {
+    if (event.target === catalogDialog) catalogDialog.close();
+  });
+  catalogDialog.addEventListener("close", () => {
+    clearTimeout(catalogTimer);
+    ++catalogSequence;
+    catalogBusy = false;
+    try { if (!dialog.open) webapp?.BackButton?.hide(); } catch (_) {}
+  });
+
   document.querySelectorAll("[data-tab]").forEach((button) =>
     button.addEventListener("click", () => {
       if (state) switchTab(button.dataset.tab);
     }),
   );
   const closeDetails = () => {
-    dialog.close();
-    try {
-      webapp?.BackButton?.hide();
-    } catch (_) {}
+    if (dialog.open) dialog.close();
+    else if (catalogDialog.open) catalogDialog.close();
   };
   dialog.querySelector(".close-dialog").addEventListener("click", closeDetails);
   dialog.addEventListener("click", (event) => {
@@ -367,7 +548,8 @@
   });
   dialog.addEventListener("close", () => {
     try {
-      webapp?.BackButton?.hide();
+      if (catalogDialog.open) webapp?.BackButton?.show();
+      else webapp?.BackButton?.hide();
     } catch (_) {}
   });
   document.addEventListener("error", (event) => handleImageError(event.target), true);
