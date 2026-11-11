@@ -131,7 +131,7 @@
     document.querySelector(".bottom-nav").hidden = true;
     document.querySelector("#header-note").textContent =
       "Ваше личное пространство";
-    main.innerHTML = `<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><span class="eyebrow">Место для ваших открытий</span><h1>${expired ? "Откройте Ароматию заново" : "Встречаемся в Telegram"}</h1><p>${expired ? "Сессия завершилась или доступ не подтверждён. Закройте приложение и снова откройте его через меню вашего бота в Telegram." : "Откройте Ароматию из меню вашего бота в Telegram. Там вас ждут подбор ароматов, избранное и личная коллекция."}</p></section>`;
+    main.innerHTML = `<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><h1>${expired ? "Откройте Ароматию заново" : "Встречаемся в Telegram"}</h1><p>${expired ? "Сессия завершилась или доступ не подтверждён. Закройте приложение и снова откройте его через меню вашего бота в Telegram." : "Откройте Ароматию из меню вашего бота в Telegram. Там вас ждут подбор ароматов, избранное и личная коллекция."}</p></section>`;
   }
 
   function errorPanel(retry) {
@@ -154,45 +154,37 @@
     }
   }
 
-  function catalogueDescription(card) {
-    const levels = [
-      ["top", "Верхние ноты"],
-      ["heart", "В сердце"],
-      ["base", "База"],
-    ];
-    return levels
-      .map(([level, label]) => {
-        const values = safeList(card.notes?.[level] || card[`${level}_notes`]);
-        return values.length
-          ? `${label} — ${values.map((value) => translated(value, notes).toLocaleLowerCase("ru")).join(", ")}.`
-          : "";
-      })
-      .filter(Boolean)
-      .join(" ");
-  }
-
   function imageMarkup(card) {
     const image = card.image;
     const url = safeUrl(image?.url, true);
-    if (!url) return '<div class="image-missing">Фото пока не добавлено</div>';
-    const source = safeUrl(image.source_url);
-    return `<figure class="perfume-visual"><img class="perfume-image" src="${esc(url)}" alt="${esc(image.alt || `${card.house} ${card.name}`)}" decoding="async" referrerpolicy="no-referrer"><figcaption>${source ? `<a href="${esc(source)}" target="_blank" rel="noopener noreferrer">${esc(image.source_title || "Источник фото")}</a>` : esc(image.source_title || "")}</figcaption></figure>`;
+    if (!url) return "";
+    return `<figure class="perfume-visual"><img class="perfume-image" src="${esc(url)}" alt="${esc(image.alt || `${card.house} ${card.name}`)}" decoding="async" referrerpolicy="no-referrer"></figure>`;
   }
 
   function reviewsMarkup(card) {
     const reviews = Array.isArray(card.reviews)
       ? card.reviews.filter((review) => review && typeof review.text === "string" && review.text.trim() && safeUrl(review.source_url))
       : [];
-    return `<section class="reviews" aria-label="Отзывы"><h2 class="section-label">Отзывы</h2>${reviews.length ? reviews.map((review) => `<article class="review"><p class="review-text">${esc(review.text)}</p><a class="review-source" href="${esc(safeUrl(review.source_url))}" target="_blank" rel="noopener noreferrer">${esc([review.author, review.source_title].filter(Boolean).join(" · ") || "Читать источник")} ↗</a></article>`).join("") : '<p class="reviews-empty">Отзывы пока не подключены</p>'}</section>`;
+    if (!reviews.length) return "";
+    return `<section class="reviews" aria-label="Отзывы"><h2 class="section-label">Отзывы</h2>${reviews.map((review) => {
+      const videoOnly = /без текстового|без извлеч|не расшифровано/.test(review.source_title || "");
+      return `<article class="review">${videoOnly ? "" : `<p class="review-text">${esc(review.text)}</p>`}<a class="review-source" href="${esc(safeUrl(review.source_url))}" target="_blank" rel="noopener noreferrer">${esc(review.author || "Источник")} · ${videoOnly ? "Видеообзор" : "Читать обзор"} ↗</a></article>`;
+    }).join("")}</section>`;
   }
 
   function handleImageError(image) {
     if (!(image instanceof HTMLImageElement) || !image.classList.contains("perfume-image") || !image.isConnected)
       return;
-    const message = document.createElement("p");
-    message.className = "image-missing";
-    message.textContent = "Фото недоступно";
-    image.replaceWith(message);
+    const article = image.closest(".perfume");
+    image.closest(".perfume-visual")?.remove();
+    article?.classList.remove("has-visual");
+    const details = article?.querySelector(".card-details");
+    if (details && !details.querySelector(".image-status")) {
+      const status = document.createElement("p");
+      status.className = "image-status";
+      status.textContent = "Фото недоступно.";
+      details.append(status);
+    }
   }
 
   function checkImages(container) {
@@ -238,20 +230,27 @@
     ]
       .filter(Boolean)
       .join(" · ");
-    const hasTranslation = typeof card.description_ru === "string" && card.description_ru.trim();
-    const description = hasTranslation ? card.description_ru : catalogueDescription(card);
-    return `<article class="perfume">${imageMarkup(card)}<div class="perfume-hero"><div class="hero-copy"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1><div class="chips">${chips}</div></div></div>${card.recommendation_reason_ru ? `<p class="recommendation-reason"><span>Почему этот аромат</span>${esc(card.recommendation_reason_ru)}</p>` : ""}${description ? `<p class="description">${esc(description)}${hasTranslation ? "" : '<span class="description-credit">По нотам каталога</span>'}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата"><h2 class="section-label">Как раскрывается аромат</h2>${pyramid}${seasons ? `<div class="seasons">${seasons}</div>` : ""}</section>` : seasons ? `<div class="seasons">${seasons}</div>` : ""}${meta ? `<p class="meta-line">${esc(meta)}</p>` : ""}${reviewsMarkup(card)}</article>`;
+    const description = typeof card.description_ru === "string" ? card.description_ru.trim() : "";
+    const visual = imageMarkup(card);
+    const imageSource = safeUrl(card.image?.source_url);
+    const more = [
+      !visual ? '<p class="image-status">Фото пока не добавлено.</p>' : "",
+      card.recommendation_reason_ru ? `<p>${esc(card.recommendation_reason_ru)}</p>` : "",
+      meta ? `<p>${esc(meta)}</p>` : "",
+      imageSource ? `<p>Фото: <a href="${esc(imageSource)}" target="_blank" rel="noopener noreferrer">${esc(card.image.author || card.image.source_title || "Источник")} ↗</a></p>` : "",
+    ].filter(Boolean).join("");
+    return `<article class="perfume${visual ? " has-visual" : ""}">${visual}<div class="perfume-content"><header class="perfume-hero"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1>${chips ? `<div class="chips">${chips}</div>` : ""}</header>${description ? `<p class="description">${esc(description)}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата">${pyramid}</section>` : ""}${seasons ? `<div class="seasons">${seasons}</div>` : ""}${reviewsMarkup(card)}${more ? `<details class="card-details"><summary>Подробнее</summary>${more}</details>` : ""}</div></article>`;
   }
 
   function renderDiscover() {
     if (!state?.current) {
-      main.innerHTML = `<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><span class="eyebrow">Всё самое интересное — впереди</span><h1>Вы познакомились со всеми ароматами</h1><p>Загляните в избранное: там сохранились ароматы, которые хочется попробовать.</p><button class="plain-button" id="open-wishlist">Открыть избранное</button></section>`;
+      main.innerHTML = `<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><h1>Вы познакомились со всеми ароматами</h1><p>Загляните в избранное: там сохранились ароматы, которые хочется попробовать.</p><button class="plain-button" id="open-wishlist">Открыть избранное</button></section>`;
       document
         .querySelector("#open-wishlist")
         .addEventListener("click", () => switchTab("wishlist"));
       return;
     }
-    main.innerHTML = `<div class="intro"><span class="eyebrow">Ваше следующее открытие</span><span class="index">${String(state.seen_count || 1).padStart(2, "0")} <span aria-hidden="true">/</span> ${state.total || (state.seen_count || 1) + (state.remaining || 0)}</span></div>${cardMarkup(state.current)}<section class="reaction-area" aria-label="Ваша реакция"><h2 class="reaction-caption">Как вам этот аромат?</h2><div class="reaction-buttons">${["want", "bought", "known", "not_for_me"].map((reaction) => `<button type="button" class="reaction" data-reaction="${reaction}" aria-label="${labels[reaction]}" title="${labels[reaction]}">${svg(icons[reaction])}</button>`).join("")}</div><p class="reaction-help">Выберите реакцию — и откроется следующий аромат</p><div id="reaction-error" class="error-inline" role="alert"></div></section>`;
+    main.innerHTML = `${cardMarkup(state.current)}<section class="reaction-area" aria-label="Ваша реакция"><h2 class="reaction-caption">Как вам этот аромат?</h2><div class="reaction-buttons">${["want", "bought", "known", "not_for_me"].map((reaction) => `<button type="button" class="reaction" data-reaction="${reaction}" aria-label="${labels[reaction]}" title="${labels[reaction]}">${svg(icons[reaction])}</button>`).join("")}</div><p class="reaction-help">Выберите реакцию — и откроется следующий аромат</p><div id="reaction-error" class="error-inline" role="alert"></div></section>`;
     checkImages(main);
     main
       .querySelectorAll("[data-reaction]")
@@ -306,7 +305,7 @@
 
   async function renderLibrary(kind) {
     const wishlist = kind === "wishlist";
-    const heading = `<div class="library-head"><span class="eyebrow">Ваш парфюмерный дневник</span><h1 class="library-title">${wishlist ? "Избранное" : "Коллекция"}</h1><p class="library-subtitle">${wishlist ? "Ароматы, к которым хочется вернуться. Сохраните идею для следующего знакомства." : "Ваши знакомые ароматы и те, что уже заняли место на полке."}</p></div>`;
+    const heading = `<div class="library-head"><h1 class="library-title">${wishlist ? "Избранное" : "Коллекция"}</h1></div>`;
     main.innerHTML = `${heading}<section class="message-panel"><span class="loading-leaf"></span><p>Собираем ваши ароматы…</p></section>`;
     try {
       if (!libraries[kind])
@@ -421,7 +420,7 @@
     results.querySelectorAll("[data-catalog-detail]").forEach(button => {
       button.addEventListener("click", () => showDetails(catalogItems[Number(button.dataset.catalogDetail)], true));
     });
-    document.querySelector("#catalog-status").textContent = `Найдено: ${catalogCount} · показано ${catalogItems.length}`;
+    document.querySelector("#catalog-status").textContent = `${catalogCount} ароматов`;
     document.querySelector("#catalog-more").hidden = catalogItems.length >= catalogCount;
   }
 
