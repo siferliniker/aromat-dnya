@@ -34,8 +34,7 @@ export async function serveAsset(request, env, assets) {
   if (asset.key) {
     if (!env.BUCKET) return assetError(503, "Assets storage is unavailable");
     const object = request.method === "HEAD" ? await env.BUCKET.head(asset.key) : await env.BUCKET.get(asset.key);
-    if (!object) return assetError(503, "Asset is awaiting initialization");
-    body = object.body;
+    body = object ? object.body : await hydrateAsset(env, asset);
   }
   const headers = new Headers({
     "Content-Type": asset.type,
@@ -51,50 +50,59 @@ export async function serveAsset(request, env, assets) {
   return new Response(request.method === "HEAD" ? null : body, { headers });
 }
 
-function tokenMatches(actual, expected) {
-  if (typeof expected !== "string" || expected.length < 32 || actual.length !== expected.length) return false;
-  let difference = 0;
-  for (let index = 0; index < actual.length; index++) difference |= actual.charCodeAt(index) ^ expected.charCodeAt(index);
-  return difference === 0;
+const pendingAssets = new Map();
+
+// The build pins a public repository commit and exact original PNG digest.
+// Visitors cannot provide URLs or upload bytes. A missing R2 object repairs itself.
+async function hydrateAsset(env, asset) {
+  if (pendingAssets.has(asset.key)) return pendingAssets.get(asset.key);
+  const pending = (async () => {
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch(asset.source, { signal: controller.signal, redirect: "error" });
+      if (!response.ok || !response.body) throw new Error("AssetSourceUnavailable");
+      const length = response.headers.get("Content-Length");
+      if (length !== null && Number(length) !== asset.size) {
+        await response.body.cancel();
+        throw new Error("AssetSizeMismatch");
+      }
+      const reader = response.body.getReader();
+      const bytes = new Uint8Array(asset.size);
+      let offset = 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (offset + value.byteLength > asset.size) {
+          await reader.cancel();
+          throw new Error("AssetSizeMismatch");
+        }
+        bytes.set(value, offset);
+        offset += value.byteLength;
+      }
+      if (offset !== asset.size) throw new Error("AssetSizeMismatch");
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+      const hash = Array.from(digest, value => value.toString(16).padStart(2, "0")).join("");
+      if (hash !== asset.sha256) throw new Error("AssetDigestMismatch");
+      await env.BUCKET.put(asset.key, bytes, {
+        httpMetadata: { contentType: asset.type, cacheControl: "public, max-age=31536000, immutable" },
+        customMetadata: { sha256: hash },
+      });
+      return bytes;
+    } finally {
+      clearTimeout(deadline);
+    }
+  })();
+  pendingAssets.set(asset.key, pending);
+  try { return await pending; } finally { pendingAssets.delete(asset.key); }
 }
 
-// Provision only exact build-time public raster bytes. Disable after initial
-// upload by removing ASSET_UPLOAD_TOKEN from runtime secrets.
-export async function bootstrapAsset(request, env, assets) {
-  const path = new URL(request.url).pathname;
-  if (!path.startsWith("/_bootstrap/assets/")) return null;
-  const authorization = request.headers.get("Authorization") || "";
-  if (!authorization.startsWith("Bearer ") || !tokenMatches(authorization.slice(7), env.ASSET_UPLOAD_TOKEN)) {
-    return assetError(404, "Not found");
+export async function warmAssets(env, assets) {
+  if (!env.BUCKET) return;
+  const results = await Promise.allSettled(Object.values(assets).filter(asset => asset.key).map(async asset => {
+    if (!await env.BUCKET.head(asset.key)) await hydrateAsset(env, asset);
+  }));
+  for (const result of results) {
+    if (result.status === "rejected") console.error("Asset warm failed", result.reason?.name || "Error");
   }
-  if (request.method !== "PUT") return assetError(405, "PUT required");
-  const name = path.slice("/_bootstrap/assets/".length);
-  const asset = Object.hasOwn(assets, name) ? assets[name] : null;
-  if (!asset?.key) return assetError(404, "Not found");
-  if (!env.BUCKET) return assetError(503, "Assets storage is unavailable");
-  const length = request.headers.get("Content-Length");
-  if (length !== null && Number(length) !== asset.size) return assetError(400, "Invalid asset size");
-  if (!request.body) return assetError(400, "Asset bytes required");
-  const reader = request.body.getReader();
-  const bytes = new Uint8Array(asset.size);
-  let offset = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    if (offset + value.byteLength > asset.size) {
-      await reader.cancel();
-      return assetError(413, "Invalid asset size");
-    }
-    bytes.set(value, offset);
-    offset += value.byteLength;
-  }
-  if (offset !== asset.size) return assetError(400, "Invalid asset size");
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  const hash = Array.from(digest, value => value.toString(16).padStart(2, "0")).join("");
-  if (hash !== asset.sha256) return assetError(400, "Invalid asset digest");
-  await env.BUCKET.put(asset.key, bytes, {
-    httpMetadata: { contentType: asset.type, cacheControl: "public, max-age=31536000, immutable" },
-    customMetadata: { sha256: hash },
-  });
-  return Response.json({ status: "stored", name, sha256: hash }, { headers: { "Cache-Control": "no-store" } });
 }
