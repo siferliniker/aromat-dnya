@@ -1,4 +1,5 @@
 from html import escape
+from html.parser import HTMLParser
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -10,6 +11,22 @@ LABELS = {
     "bloggers": "B: блогеры", "consensus": "C: согласованность",
     "novelty": "N: новизна", "hype": "H: известность", "taste": "T: вкус",
 }
+
+
+class _VisibleText(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.units = 0
+
+    def handle_data(self, data: str) -> None:
+        self.units += len(data.encode("utf-16-le")) // 2
+
+
+def visible_utf16_units(text: str) -> int:
+    parser = _VisibleText()
+    parser.feed(text)
+    parser.close()
+    return parser.units
 
 
 def feedback_keyboard(perfume_id: int) -> InlineKeyboardMarkup:
@@ -45,8 +62,18 @@ def format_card(card: RecommendationCard) -> str:
                      "(1 — самый известный; это не число оценок).")
     lines.append("Отрицательный балл означает штраф за известность, а не плохой отзыв.")
     lines.append("Нет данных: " + "; ".join(LABELS[name] for name in card.score.missing) + ".")
-    lines.extend(("Веса перераспределены только между доступными компонентами.",
-                  "Отзывы, сравнения и LLM-резюме пока недоступны.",
+    lines.append("Веса перераспределены только между доступными компонентами.")
+    if card.score.algorithm_version == "opinions-v1":
+        disagreement = card.score.disagreement
+        if disagreement == "fragrantica_higher":
+            lines.append("За границей любят, у нас спорно: Fragrantica выше русских отзывов.")
+        elif disagreement == "russian_reviews_higher":
+            lines.append("У нас любят, за границей спорно: русские отзывы выше Fragrantica.")
+        lines.append(e(card.summary.text) if card.summary is not None else
+                     "LLM-резюме недоступно: нет пригодных подтверждённых цитат.")
+    else:
+        lines.append("Отзывы, сравнения и LLM-резюме пока недоступны.")
+    lines.extend((
                   "Где купить, цена, наличие, пробник и миниатюра: неизвестны.", "",
                   f"Источник: {e(card.source_name)}.",
                   "Scento — https://www.scento.com/perfume-database",

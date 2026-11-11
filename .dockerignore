@@ -5,6 +5,8 @@
 !config.yaml
 !bot/
 !bot/**
+!miniapp/
+!miniapp/**
 !collectors/
 !collectors/**
 !llm/
@@ -14,6 +16,8 @@
 !storage/
 !storage/**
 !data/
+!data/source_admissions.json
+!data/miniapp_content.json
 !data/scento/
 !data/scento/perfumes.jsonl
 !data/scento/manifest.json

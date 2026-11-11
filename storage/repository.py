@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.engine import Engine
@@ -10,10 +11,15 @@ from sqlalchemy.orm import Session
 from collectors.contracts import DatasetRevisionRecord, SourceBatch
 from config import AppConfig, ScoringConfig
 from scoring.dataset import ScoreResult, score_dataset
+from scoring.engine import OpinionScore, score_opinions
+from llm.contracts import CardSummary
 from storage.models import (
     Note, Perfume, PerfumeNote, RatingObservation, ScoreComponent, ScoreEvidence,
     ScoreSnapshot, SentLog, Source, SourceRevision, TasteProfile, UserFeedback,
 )
+
+if TYPE_CHECKING:
+    from storage.opinions import OpinionRepository
 
 
 @dataclass(frozen=True)
@@ -167,8 +173,13 @@ class RecommendationCard:
     source_url: str | None
     revision_ref: str
     artifact_sha256: str
-    score: ScoreResult
+    score: ScoreResult | OpinionScore
     rating: RatingObservation | None
+    score_snapshot_id: int | None = None
+    summary: CardSummary | None = None
+    summary_status: str = "disabled"
+    pipeline_generation: int | None = None
+    computed_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -182,15 +193,19 @@ REACTIONS = frozenset(("want", "known", "not_for_me", "bought"))
 
 
 class RecommendationRepository:
-    def __init__(self, engine: Engine, scoring_config: ScoringConfig):
-        self.engine, self.scoring_config = engine, scoring_config
+    def __init__(self, engine: Engine, scoring_config: ScoringConfig, *,
+                 opinions: "OpinionRepository | None" = None):
+        self.engine, self.scoring_config, self.opinions = engine, scoring_config, opinions
 
     @staticmethod
     def _existing(session: Session, user_id: int, local_date: date) -> ReservationResult | None:
         row = session.scalar(select(SentLog).where(SentLog.user_id == user_id, SentLog.local_date == local_date))
         return ReservationResult(row.status, row.id) if row else None
 
-    def reserve(self, user_id: int, local_date: date) -> ReservationResult:
+    def reserve(self, user_id: int, local_date: date, *, now: datetime | None = None) -> ReservationResult:
+        now = now or datetime.now(timezone.utc)
+        if now.utcoffset() is None:
+            raise ValueError("reservation time must include a timezone")
         # Unique constraints arbitrate independently running scheduler and command workers.
         for _attempt in range(16):
             selected_perfume_id = None
@@ -215,30 +230,36 @@ class RecommendationRepository:
                             RatingObservation.source_revision_id == perfume.source_revision_id,
                             RatingObservation.source_id == perfume.source_id,
                         ).order_by(RatingObservation.observed_at.desc(), RatingObservation.id.desc()).limit(1))
-                        score = score_dataset(rating, self.scoring_config)
+                        score = (score_opinions(self.opinions.load_evidence(perfume.id, now=now,
+                                                                          session=session), self.scoring_config)
+                                 if self.opinions is not None else score_dataset(rating, self.scoring_config))
                         if score.total is not None:
                             candidates.append((score.total, -perfume.id, perfume, rating, score))
                     if not candidates:
                         return ReservationResult("empty")
                     _, _, perfume, rating, score = max(candidates, key=lambda row: row[:2])
                     selected_perfume_id = perfume.id
-                    snapshot = ScoreSnapshot(
-                        perfume_id=perfume.id, computed_at=datetime.now(timezone.utc),
-                        algorithm_version=score.algorithm_version,
-                        scoring_config=self.scoring_config.model_dump(mode="json"), total=score.total,
-                    )
-                    session.add(snapshot)
-                    session.flush()
-                    for item in score.components:
-                        component = ScoreComponent(snapshot_id=snapshot.id, perfume_id=perfume.id,
-                            name=item.name, value=item.value, effective_weight=item.effective_weight)
-                        session.add(component)
+                    if self.opinions is not None:
+                        snapshot_id = self.opinions.save_score(perfume.id, score, computed_at=now, session=session)
+                    else:
+                        snapshot = ScoreSnapshot(
+                            perfume_id=perfume.id, computed_at=now,
+                            algorithm_version=score.algorithm_version,
+                            scoring_config=self.scoring_config.model_dump(mode="json"), total=score.total,
+                        )
+                        session.add(snapshot)
                         session.flush()
-                        for evidence_id in item.rating_observation_ids:
-                            session.add(ScoreEvidence(component_id=component.id, perfume_id=perfume.id,
-                                                       rating_observation_id=evidence_id))
+                        snapshot_id = snapshot.id
+                        for item in score.components:
+                            component = ScoreComponent(snapshot_id=snapshot_id, perfume_id=perfume.id,
+                                name=item.name, value=item.value, effective_weight=item.effective_weight)
+                            session.add(component)
+                            session.flush()
+                            for evidence_id in item.rating_observation_ids:
+                                session.add(ScoreEvidence(component_id=component.id, perfume_id=perfume.id,
+                                                           rating_observation_id=evidence_id))
                     reservation = SentLog(user_id=user_id, perfume_id=perfume.id, local_date=local_date,
-                                          status="reserved", score_snapshot_id=snapshot.id)
+                                          status="reserved", score_snapshot_id=snapshot_id)
                     session.add(reservation)
                     session.flush()
                     source = session.get(Source, perfume.source_id)
@@ -247,7 +268,10 @@ class RecommendationRepository:
                         Note, Note.id == PerfumeNote.note_id).where(PerfumeNote.perfume_id == perfume.id)
                         .order_by(PerfumeNote.level, Note.name)).all())
                     card = RecommendationCard(perfume, notes, source.name, perfume.source_url,
-                        revision.revision_ref, revision.artifact_sha256.hex(), score, rating)
+                        revision.revision_ref, revision.artifact_sha256.hex(), score, rating,
+                        score_snapshot_id=snapshot_id,
+                        summary_status="unavailable" if self.opinions is not None else "disabled",
+                        computed_at=now)
                     result = ReservationResult("new", reservation.id, card)
                 return result
             except IntegrityError:

@@ -1,0 +1,44 @@
+{
+  "sources": [
+    {
+      "source_key": "youtube",
+      "kind": "blog",
+      "name": "Выбранные пользователем YouTube-блогеры",
+      "platform": "youtube",
+      "enabled": false,
+      "permission_status": "pending",
+      "terms_url": "https://developers.google.com/youtube/terms/api-services-terms-of-service",
+      "scope": "public_review",
+      "approval_ref": null,
+      "platform_approval_ref": null,
+      "author_approval_ref": null,
+      "approved_at": null,
+      "expires_at": null,
+      "operations": {
+        "fetch": false,
+        "store": false,
+        "llm": false,
+        "derive": false,
+        "quote": false,
+        "golden": false
+      },
+      "approved_urls": [],
+      "bloggers": [
+        {
+          "external_id": "UCvHfcnyTmNqCTqntQxZkmag",
+          "name": "PARFUM4MEN",
+          "channel_url": "https://www.youtube.com/@PARFUM4MEN",
+          "weight": 1.0
+        },
+        {
+          "external_id": "UCMDoBzH40rxM7d9_vWcRTxg",
+          "name": "Masculinor",
+          "channel_url": "https://www.youtube.com/@Masculinor",
+          "weight": 1.0
+        }
+      ],
+      "evidence_role": "bloggers",
+      "max_age_seconds": null
+    }
+  ]
+}

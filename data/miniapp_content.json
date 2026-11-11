@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-11-11",
+  "scope": "Ручной стартовый набор для восьми ароматов. Не результат автоматического сбора или просмотра видео. Не участвует в скоринге.",
+  "description_attribution": "Ручной русский перевод описаний закреплённого каталога Scento, CC BY 4.0. Изображения не входят в эту лицензию.",
+  "image_notice": "Изображения загружаются браузером непосредственно с официальных сайтов брендов или авторской страницы Scent Grail, без локальной копии. Права принадлежат соответствующим правообладателям; источник указан в каждой карточке. Доступность зависит от сайта-источника.",
+  "perfumes": {
+    "acqua-di-parma-blu-mediterraneo-bergamotto-di-calabria": {
+      "description_ru": "Калабрийский бергамот и цитрон раскрываются на фоне кедра и красного имбиря, переходя в спокойную базу ветивера, бензоина и мускуса.",
+      "image": {
+        "url": "https://www.acquadiparma.com/dw/image/v2/BDPB_PRD/on/demandware.static/-/Sites-adp-master-catalog/default/dw95bbca7a/images/hi-res-1/ADPADP082913-100ML.master.1.H1.jpg?q=85&sw=780",
+        "alt": "Флакон Acqua di Parma Bergamotto di Calabria",
+        "author": "Acqua di Parma",
+        "source_url": "https://www.acquadiparma.com/it/it/bergamotto-di-calabria/BERGAMOTTOEDTSPRAY.html"
+      },
+      "reviews": [{
+        "text": "В описании своего видео автор связывает аромат с цитрусами, мохито и летним пляжем. Это аннотация описания; видео не расшифровано.",
+        "author": "Joy Amin",
+        "source_title": "Видеообзор · аннотация по описанию автора",
+        "source_url": "https://www.youtube.com/watch?v=W5scIuNq8QQ"
+      }]
+    },
+    "acqua-di-parma-colonia-essenza": {
+      "description_ru": "Яркое сочетание цитрусов и нероли сменяется розмарином, розой и жасмином. В базе — ветивер, пачули, белый мускус и амбра.",
+      "image": {
+        "url": "https://scentgrail.com/wp-content/uploads/2020/09/Acqua-di-Parma-Colonia-Essenza-Review.jpg.webp",
+        "alt": "Флакон Acqua di Parma Colonia Essenza",
+        "author": "Marin Kristic · Scent Grail",
+        "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/"
+      },
+      "reviews": [{
+        "text": "Marin Kristic хвалит цитрусовое начало с нероли; на своей коже отмечает 6–8 часов стойкости и умеренный шлейф.",
+        "author": "Marin Kristic · Scent Grail",
+        "source_title": "Авторский обзор · краткий пересказ",
+        "source_url": "https://scentgrail.com/holy-grail-scents/colonia-essenza-review/"
+      }]
+    },
+    "acqua-di-parma-colonia-intensa": {
+      "description_ru": "Кардамон и имбирь придают остроту калабрийскому бергамоту и сицилийскому лимону. Мирт и полынь переходят в базу кожи, кедра и бензоина.",
+      "image": {
+        "url": "https://acquadiparma.jp/wp-content/uploads/2019/12/JPG-300-DPI-Colonia-Intensa-180-ml-primary_corr2-1000x1000.jpg",
+        "alt": "Флакон Acqua di Parma Colonia Intensa",
+        "author": "Acqua di Parma",
+        "source_url": "https://acquadiparma.jp/product/colonia-intensa-180/"
+      },
+      "reviews": [{
+        "text": "Marin Kristic отмечает лёгкое цитрусовое начало, усиливающуюся древесность и мягкую кожу; особенно рекомендует аромат для тёплых вечеров.",
+        "author": "Marin Kristic · Scent Grail",
+        "source_title": "Авторский обзор · краткий пересказ раздела Colonia Intensa",
+        "source_url": "https://scentgrail.com/news/fragrance-recommendations-for-june-2021/"
+      }]
+    },
+    "afnan-9pm-elixir": {
+      "description_ru": "Мускатный орех и кардамон согревают начало, затем раскрываются лавандин и кожа. В финале — смолистая, мягко-сладкая база лабданума, пачули и ванили.",
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/9PM_ELIXIR-1.png?v=1775218857&width=2000",
+        "alt": "Флакон Afnan 9 PM Elixir",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/9-pm-elixir"
+      },
+      "reviews": [{
+        "text": "Авторский видеообзор 9PM Elixir. Содержание видео ещё не расшифровано; оценка и краткий отзыв не извлечены.",
+        "author": "Chad Secrets",
+        "source_title": "Ссылка на видеообзор · без текстового резюме",
+        "source_url": "https://www.youtube.com/watch?v=uJ8wqUOENfE"
+      }]
+    },
+    "afnan-rare-carbon": {
+      "description_ru": "Пряный кожано-древесный аромат: корица и мускатный орех сочетаются с розой, фиалкой и кедром, а в базе звучат ветивер, сандал и амбра.",
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/Rare_Carbon.png?v=1783412450&width=2000",
+        "alt": "Флакон Afnan Rare Carbon",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/rare-carbon"
+      },
+      "reviews": []
+    },
+    "afnan-supremacy-incense": {
+      "description_ru": "Яркий бергамот и перечный орегано сменяются смолистым амбровым сердцем с лабданумом и опопонаксом. В базе — кожа, сандал, пачули и уд.",
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/SupremacyIncense-Product-01_7fe9df00-71bb-4edd-84c3-20ade057be51.jpg?v=1775552987&width=1080",
+        "alt": "Флакон Afnan Supremacy Incense",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/supremacy-incense"
+      },
+      "reviews": [{
+        "text": "Авторский видеообзор Supremacy Incense. Содержание видео ещё не расшифровано; оценка и краткий отзыв не извлечены.",
+        "author": "Absolute Fragrance · Tinuola Ajayi",
+        "source_title": "Ссылка на видеообзор · без текстового резюме",
+        "source_url": "https://www.youtube.com/watch?v=7Fwwuc5FIis"
+      }]
+    },
+    "afnan-supremacy-not-only-intense": {
+      "description_ru": "Свежие фрукты на тёмной мшистой основе: бергамот, яблоко и чёрная смородина сменяются лавандой и пачули. В финале — шафран, мускус и серая амбра.",
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/SupremacyIntense-Product-01.jpg?v=1775552949&width=1080",
+        "alt": "Флакон Afnan Supremacy Not Only Intense",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/supremacy-not-only-intense"
+      },
+      "reviews": []
+    },
+    "afnan-supremacy-silver": {
+      "description_ru": "Свежий фруктово-древесный аромат: яблоко, бергамот и мшистые оттенки сменяются ананасом, пачули и жасмином. В базе — мускус, серая амбра и берёза.",
+      "image": {
+        "url": "https://us.afnan.com/cdn/shop/files/SupremacySilver-Product-01.jpg?v=1775552976&width=1080",
+        "alt": "Флакон Afnan Supremacy Silver",
+        "author": "Afnan Perfumes",
+        "source_url": "https://us.afnan.com/products/supremacy-silver"
+      },
+      "reviews": []
+    }
+  }
+}

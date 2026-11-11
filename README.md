@@ -1,18 +1,42 @@
 # Аромат дня
 
-Личный Telegram-бот рекомендует один новый аромат в сутки по времени `Asia/Omsk`. Команда `/today` и ежедневная отправка в 10:00 используют общий журнал: повторная команда в тот же день не отправляет вторую карточку. Кнопки сохраняют реакцию, `/wishlist` показывает желаемое, `/known` — известное и купленное. `/privacy` описывает данные, `/delete_my_data` удаляет реакции, журнал доставки и профиль пользователя.
+Текущий интерфейс — Telegram Mini App с карточкой аромата и меню «Подбор», «Избранное», «Коллекция». Реакция сохраняется и сразу открывает следующий аромат на том же экране. Прежняя ежедневная рассылка на этом компьютере остановлена.
 
 Этап 1 использует 300 ароматов из закреплённого офлайн-снимка Scento. При запуске бот проверяет SHA-256 и идемпотентно импортирует каталог. Ранг популярности Scento не выдаётся за рейтинг или число голосов. Отзывы, фотографии, живые адаптеры источников и OpenAI выключены.
+
+Этап 2 разрабатывается отдельно и ещё не принят. Инструкции рабочего запуска ниже относятся к принятому этапу 1; проверку текущих зависимостей и тестов выполняйте в отдельной среде. Сборка из рабочего дерева этапа 2 не является обновлением принятого production-образа.
+
+На этом компьютере рабочие папки, временные файлы, кэши и локальные копии проекта хранятся в `D:\Ароматия\.local`. Этот каталог исключён из Git и контекста Docker.
+
+## Локальный запуск Mini App
+
+Для существующей установки с зашифрованным каталогом и настроенным `.env`:
+
+```powershell
+docker compose -f docker-compose.miniapp.yml up -d --build
+docker compose -f docker-compose.miniapp.yml ps
+Invoke-RestMethod http://127.0.0.1:8765/health
+```
+
+Используется прежний внешний том `aromat-dnya_aromat_data`; ключ базы и токен читаются из read-only `.env`. Сервер слушает только локальный адрес. API принимает подписанные Telegram initData только владельца: открытие адреса в обычном браузере не даёт доступа к карточкам.
+
+Для открытия внутри Telegram требуется публичный HTTPS-адрес, затем кнопка Web App в меню бота. На 11 ноября сетевые попытки Cloudflare и localhost.run не прошли. По решению пользователя приложение оставлено локальным, туннели остановлены и меню Telegram не изменено. Временный туннель также требует включённого компьютера. Изображения локальной проверки интерфейса находятся в `.local/miniapp-preview`.
+
+Карточки показывают доступные сведения Scento: описание, ноты, семейство, концентрацию и сезоны. Реакции и нижняя навигация представлены значками без видимых подписей и подложек. Ноты, семейства и концентрации переведены; для первых восьми ароматов добавлен перевод описания, для остальных используется русское описание по нотам.
+
+`data/miniapp_content.json` содержит ручной стартовый набор: восемь ссылок на настоящие фотографии и пять записей обзоров (два кратких пересказа Scent Grail, аннотация описания видео Joy Amin и две ссылки на видео без извлечённого содержания). В браузере загрузились шесть фотографий; Bergamotto di Calabria и Colonia Intensa недоступны из текущей сети, показывается «Фото недоступно». Изображения загружаются с указанных сайтов напрямую, их права не относятся к CC BY каталога. Остальные 292 аромата пока без этого дополнения. Автоматический сбор отзывов и цены ещё не подключены.
+
+Дальнейшие инструкции относятся к прежней версии бота с ежедневной отправкой; её не следует запускать одновременно с текущим переходом на Mini App.
 
 ## Запуск в Docker
 
 Нужен Docker Engine с Compose v2; на Windows — запущенный Docker Desktop в режиме Linux containers. Проверяйте доступность командой `docker version`. Все следующие команды выполняются из корня проекта.
 
-В текущей установке Windows Docker Desktop находится в `D:\DockerDesktop`, данные Linux-движка — в `D:\DockerData\wsl`, настройки CLI — в `D:\DockerData\cli`. Для нового окна PowerShell при необходимости задайте:
+В текущей установке Windows Docker Desktop находится в `D:\Ароматия\.local\DockerDesktop`, данные Linux-движка — в `D:\Ароматия\.local\DockerData\wsl`, настройки CLI — в `D:\Ароматия\.local\DockerData\cli`. Для нового окна PowerShell при необходимости задайте:
 
 ```powershell
-$env:PATH = 'D:\DockerDesktop\resources\bin;' + $env:PATH
-$env:DOCKER_CONFIG = 'D:\DockerData\cli'
+$env:PATH = 'D:\Ароматия\.local\DockerDesktop\resources\bin;' + $env:PATH
+$env:DOCKER_CONFIG = 'D:\Ароматия\.local\DockerData\cli'
 $env:DOCKER_CONTEXT = 'desktop-linux'
 docker info
 ```
@@ -66,7 +90,7 @@ Compose подключает защищённый файл `.env` к `/app/.env`
 
 ```sh
 docker compose stop bot
-docker compose cp bot:/data ./backup-2026-11-07
+docker compose cp bot:/data ./.local/backup-2026-11-07
 docker compose start bot
 ```
 
@@ -74,26 +98,78 @@ docker compose start bot
 
 Для изолированной проверки задайте `AROMAT_ENV_FILE` в окружении процесса как абсолютный путь к синтетическому файлу и одновременно передайте этот файл как `docker compose --env-file <путь> ...`. Первый параметр выбирает readonly bind, второй исключает автоматическое чтение рабочего `.env` для подстановок Compose. Файл должен быть доступен внутри контейнера пользователю UID `10001`. Несовместимость EFS с Docker bind mount требует отдельного решения; переход к нешифрованному файлу секретов не предусмотрен.
 
+## Разовое обновление мнений на этапе 2
+
+В репозиторном `config.yaml` этап 2, YouTube и OpenAI выключены. Шаблон `data/source_admissions.json` включён в образ со статусом `pending` и запрещёнными операциями. Команда `python -m bot --refresh-opinions` предназначена для разового обновления YouTube без запуска Telegram. При выключенном этапе 2 она возвращает код `0` и строку `Opinion refresh skipped: stage 2 is disabled.` При включённом этапе 2 и выключенном YouTube возвращает код `0` и строку `Opinion refresh skipped: YouTube is disabled.` Обе ветви завершаются до открытия базы. При отказе в допуске или ошибке обработки команда возвращает код `1` и общую диагностику без входных данных. `--check` и `--healthcheck` запускаются отдельно.
+
+Для одобренного запуска подготовьте в `.local/stage2-operator` отдельный `config.yaml` на основе репозиторного файла и проверенный `source_admissions.json`. В конфигурации задайте `stage2.enabled: true`, `sources.youtube.enabled: true`, `llm.enabled: true`, выбранную `llm.model`, явные лимиты `stage2.fetch`, `stage2.llm` и свежесть `stage2.freshness_seconds.youtube`. Укажите `stage2.approvals_path: /app/stage2-admissions.json` и `stage2.claims_path: /data/opinion-claims`. Хеши заявок на обработку сохраняются в именованном томе между запусками.
+
+Запись YouTube в реестре должна подтверждать допуск платформы и автора для операций `fetch`, `store`, `llm` и `derive` и содержать точные разрешённые адреса вида `https://www.youtube.com/watch?v=VIDEO_ID` с 11-символьным ID видео. В защищённом `.env` задайте `YOUTUBE_OAUTH_ACCESS_TOKEN` своего аккаунта с подтверждённым доступом к субтитрам этих видео, а также `OPENAI_API_KEY` и `DATABASE_ENCRYPTION_KEY`.
+
+Сохраните дополнительный файл `.local/stage2-operator/compose.override.yaml`. Он монтирует конфигурацию и реестр в контейнер только для чтения и использует том `/data` из основного файла Compose.
+
+```yaml
+services:
+  bot:
+    environment:
+      CONFIG_PATH: /app/stage2-config.yaml
+    volumes:
+      - type: bind
+        source: ./.local/stage2-operator/config.yaml
+        target: /app/stage2-config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.local/stage2-operator/source_admissions.json
+        target: /app/stage2-admissions.json
+        read_only: true
+        bind:
+          create_host_path: false
+```
+
+Из корня проекта в PowerShell запустите обновление в отдельном проекте Compose с собственным томом.
+
+```powershell
+$env:AROMAT_ENV_FILE = (Resolve-Path ./.local/stage2-operator/.env).Path
+$stage2Compose = @('-p', 'aromat-dnya-stage2', '--env-file', $env:AROMAT_ENV_FILE,
+    '-f', 'docker-compose.yml', '-f', '.local/stage2-operator/compose.override.yaml')
+docker compose @stage2Compose config --quiet
+docker compose @stage2Compose run --rm --no-deps --build bot python -m bot --refresh-opinions
+```
+
 ## Локальная проверка без Telegram
 
 Нужен Python 3.11 или новее; контейнер использует Python 3.12. В новой среде установите закреплённые зависимости и запустите тесты. Они используют синтетические данные, не читают рабочий `.env` и не вызывают внешние API.
 
+`requirements.txt` закрепляет прямые и транзитивные зависимости приложения, включая `openai==3.46.0`, `aiohttp==3.14.5` для адаптера YouTube и `httpx2==2.16.0` для транспорта OpenAI SDK. `requirements-dev.txt` добавляет закреплённый pytest и его зависимости; LLM-тесты используют локальный mock-транспорт. `pydantic==2.13.5` сохраняет совместимость с ограничением aiogram `<2.14`. Установка требует бинарный wheel SQLCipher и завершается ошибкой, если его нет для выбранной платформы и Python.
+
 ### Windows PowerShell
 
 ```powershell
-python -m venv .venv
-& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt
-& .\.venv\Scripts\python.exe -m pip check
-& .\.venv\Scripts\python.exe -m pytest -W error
+$runDir = Join-Path (Get-Location) ('.local/qa-' + [guid]::NewGuid().ToString('N'))
+$env:TEMP = Join-Path $runDir 'temp'
+New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
+$env:TMP = $env:TEMP
+$env:PYTHONDONTWRITEBYTECODE = '1'
+python -m venv (Join-Path $runDir '.venv')
+$python = Join-Path $runDir '.venv/Scripts/python.exe'
+& $python -m pip install --no-cache-dir --only-binary=:all: -r requirements-dev.txt
+& $python -m pip check
+& $python -m pytest -W error --basetemp (Join-Path $runDir 'pytest') -o "cache_dir=$runDir/cache"
 ```
 
 ### Linux и macOS
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
-.venv/bin/python -m pip check
-.venv/bin/python -m pytest -W error
+mkdir -p .local
+run_dir=$(mktemp -d "$PWD/.local/qa.XXXXXX")
+export TMPDIR="$run_dir/temp" PYTHONDONTWRITEBYTECODE=1
+mkdir "$TMPDIR"
+python3 -m venv "$run_dir/.venv"
+"$run_dir/.venv/bin/python" -m pip install --no-cache-dir --only-binary=:all: -r requirements-dev.txt
+"$run_dir/.venv/bin/python" -m pip check
+"$run_dir/.venv/bin/python" -m pytest -W error --basetemp "$run_dir/pytest" -o "cache_dir=$run_dir/cache"
 ```
 
 Команда этапа 0 `python -m storage sqlite:///stage0-check.db` создаёт пустую обычную SQLite-схему для проверки контрактов. Она не предназначена для рабочих пользовательских данных. Для живого бота и подготовки рабочего каталога используйте `python -m bot` и `python -m bot --check`, требующие ключ SQLCipher.

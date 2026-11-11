@@ -24,6 +24,10 @@ scoring:
     rating_prior_mean: 3.5
     reaction_prior_positive: 0.70
     prior_count: 50
+  opinion_components:
+    fragrantica_rating_share: 0.5
+    russian_review_prior_mean: 0.5
+    russian_review_prior_count: 10
   thresholds:
     novelty_max_rating_count: 100
     hype_min_rating_count: 10000
@@ -47,3 +51,6 @@ llm:
   provider: openai
   enabled: false
   model: null
+
+stage2:
+  enabled: false
