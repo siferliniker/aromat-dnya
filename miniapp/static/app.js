@@ -8,6 +8,10 @@
   const catalogDialog = document.querySelector("#catalog-dialog");
   const undoButton = document.querySelector("#undo-reaction");
   const searchButton = document.querySelector("#open-catalog");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const motionAnimations = new Set();
+  const closingDialogs = new WeakMap();
+  let viewVersion = 0, cardExit = null;
   let catalogItems = [], catalogCount = 0, catalogSequence = 0,
     catalogTimer, catalogFacetsReady = false, catalogBusy = false;
   let state = null,
@@ -63,6 +67,66 @@
     dictionary[value] || (/[^\x00-\x7F]/.test(value) ? value : "Не указано");
   const safeList = (value) =>
     Array.isArray(value) ? value.filter((v) => typeof v === "string" && v) : [];
+
+  function playMotion(element, frames, options) {
+    if (!element?.animate || reducedMotion.matches) return null;
+    let animation;
+    try {
+      animation = element.animate(frames, options);
+      if (!animation.finished?.then) { animation.cancel(); return null; }
+    } catch (_) { return null; }
+    motionAnimations.add(animation);
+    const finished = () => motionAnimations.delete(animation);
+    animation.finished.then(finished, finished);
+    return animation;
+  }
+
+  function resetViewMotion() {
+    ++viewVersion;
+    cardExit?.cancel();
+    cardExit = null;
+  }
+
+  async function replaceCard(direction, render) {
+    const version = viewVersion;
+    const card = main.querySelector(".perfume");
+    const current = card ? getComputedStyle(card) : null;
+    const animation = playMotion(card, [
+      { opacity: current?.opacity || 1, transform: current?.transform || "none" },
+      { opacity: 0, transform: `translateX(${direction === "back" ? 24 : -24}px) scale(.985)` },
+    ], { duration: 150, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
+    cardExit = animation;
+    if (animation) await animation.finished.catch(() => {});
+    if (version !== viewVersion) { animation?.cancel(); return false; }
+    main.dataset.motion = direction;
+    render();
+    animation?.cancel();
+    return true;
+  }
+
+  function closeDialog(target) {
+    if (!target.open) return Promise.resolve();
+    if (closingDialogs.has(target)) return closingDialogs.get(target);
+    target.dataset.closing = "true";
+    const animation = playMotion(target, [
+      { opacity: 1, transform: "translateY(0) scale(1)" },
+      { opacity: 0, transform: "translateY(18px) scale(.985)" },
+    ], { duration: 160, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
+    const task = (animation ? animation.finished.catch(() => {}) : Promise.resolve()).then(() => {
+      if (target.open) target.close();
+      animation?.cancel();
+      delete target.dataset.closing;
+      closingDialogs.delete(target);
+    });
+    closingDialogs.set(target, task);
+    return task;
+  }
+
+  const respectMotionPreference = () => {
+    if (reducedMotion.matches) for (const animation of motionAnimations) animation.cancel();
+  };
+  if (reducedMotion.addEventListener) reducedMotion.addEventListener("change", respectMotionPreference);
+  else reducedMotion.addListener?.(respectMotionPreference);
 
   function theme() {
     const dark = webapp?.colorScheme === "dark";
@@ -124,6 +188,7 @@
   }
 
   function locked(expired = false) {
+    resetViewMotion();
     state = null;
     updateCounts();
     if (dialog.open) dialog.close();
@@ -135,6 +200,7 @@
   }
 
   function errorPanel(retry) {
+    resetViewMotion();
     main.innerHTML =
       '<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><h1>Небольшая пауза</h1><p>Не удалось загрузить ароматы. Проверьте соединение и попробуйте ещё раз.</p><button class="plain-button" id="retry">Попробовать снова</button></section>';
     document.querySelector("#retry").addEventListener("click", retry);
@@ -311,6 +377,7 @@
   }
 
   function renderDiscover() {
+    resetViewMotion();
     if (!state?.current) {
       main.innerHTML = `<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><h1>Вы познакомились со всеми ароматами</h1><p>Загляните в избранное: там сохранились ароматы, которые хочется попробовать.</p><button class="plain-button" id="open-wishlist">Открыть избранное</button></section>`;
       document
@@ -332,6 +399,7 @@
     pending = true;
     updateCounts();
     main.classList.add("saving");
+    main.querySelector(`[data-reaction="${reaction}"]`)?.classList.add("is-saving");
     main
       .querySelectorAll("[data-reaction]")
       .forEach((button) => (button.disabled = true));
@@ -345,9 +413,7 @@
       libraries = {};
       updateCounts();
       if (activeTab === "discover") {
-        main.dataset.motion = "forward";
-        renderDiscover();
-        window.scrollTo(0, 0);
+        if (await replaceCard("forward", renderDiscover)) window.scrollTo(0, 0);
       }
       try {
         webapp?.HapticFeedback?.impactOccurred("light");
@@ -368,11 +434,12 @@
       main.classList.remove("saving");
       main
         .querySelectorAll("[data-reaction]")
-        .forEach((button) => (button.disabled = false));
+        .forEach((button) => { button.disabled = false; button.classList.remove("is-saving"); });
     }
   }
 
   async function renderLibrary(kind) {
+    resetViewMotion();
     const wishlist = kind === "wishlist";
     const heading = `<div class="library-head"><h1 class="library-title">${wishlist ? "Избранное" : "Коллекция"}</h1></div>`;
     main.innerHTML = `${heading}<section class="message-panel"><span class="loading-leaf"></span><p>Собираем ваши ароматы…</p></section>`;
@@ -435,8 +502,7 @@
       const response = await api("/api/select", { perfume_id: card.id, revision: state.revision });
       state = response.applied === false ? await api("/api/state") : response;
       libraries = {};
-      dialog.close();
-      catalogDialog.close();
+      await Promise.all([closeDialog(dialog), closeDialog(catalogDialog)]);
       switchTab("discover");
       notify(response.applied === false ? "Подбор обновился. Выберите аромат заново." : "Аромат выбран");
     } catch (error) {
@@ -468,8 +534,9 @@
       state = response.applied === false ? await api("/api/state") : response;
       libraries = {};
       updateCounts();
-      switchTab("discover");
-      main.dataset.motion = "back";
+      if (activeTab === "discover") {
+        if (await replaceCard("back", renderDiscover)) window.scrollTo(0, 0);
+      } else switchTab("discover", "back");
       notify(response.applied === false ? "Эту реакцию уже нельзя отменить" : "Последняя реакция отменена");
     } catch (error) {
       error.auth ? locked(true) : notify("Не удалось отменить реакцию. Попробуйте ещё раз.");
@@ -564,8 +631,10 @@
     document.querySelector("#catalog-query").focus();
   }
 
-  function switchTab(tab) {
-    main.dataset.motion = "forward";
+  function switchTab(tab, direction = "forward") {
+    resetViewMotion();
+    main.dataset.motion = direction;
+    const previousTab = activeTab;
     activeTab = tab;
     document.querySelectorAll("[data-tab]").forEach((button) => {
       const active = button.dataset.tab === tab;
@@ -573,6 +642,11 @@
       active
         ? button.setAttribute("aria-current", "page")
         : button.removeAttribute("aria-current");
+      if (active && previousTab !== tab) playMotion(button.querySelector("svg"), [
+        { transform: "translateY(0) scale(.9)" },
+        { transform: "translateY(-5px) scale(1.12)", offset: .58 },
+        { transform: "translateY(-2px) scale(1.04)" },
+      ], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
     });
     if (tab === "discover") renderDiscover();
     else renderLibrary(tab);
@@ -605,9 +679,9 @@
   document.querySelector("#catalog-more").addEventListener("click", () => {
     if (!catalogBusy) loadCatalog(false);
   });
-  catalogDialog.querySelector(".close-dialog").addEventListener("click", () => catalogDialog.close());
+  catalogDialog.querySelector(".close-dialog").addEventListener("click", () => closeDialog(catalogDialog));
   catalogDialog.addEventListener("click", event => {
-    if (event.target === catalogDialog) catalogDialog.close();
+    if (event.target === catalogDialog) closeDialog(catalogDialog);
   });
   catalogDialog.addEventListener("close", () => {
     clearTimeout(catalogTimer);
@@ -622,9 +696,13 @@
     }),
   );
   const closeDetails = () => {
-    if (dialog.open) dialog.close();
-    else if (catalogDialog.open) catalogDialog.close();
+    if (dialog.open) closeDialog(dialog);
+    else if (catalogDialog.open) closeDialog(catalogDialog);
   };
+  for (const target of [dialog, catalogDialog]) target.addEventListener("cancel", event => {
+    event.preventDefault();
+    closeDialog(target);
+  });
   dialog.querySelector(".close-dialog").addEventListener("click", closeDetails);
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) closeDetails();

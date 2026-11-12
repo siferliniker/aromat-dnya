@@ -213,7 +213,7 @@ main[data-motion="back"] .perfume { animation-name: card-back; }
 }
 @media (min-width: 1400px) { .library-list { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media (max-width: 360px) { .brand { font-size: 12px; gap: 7px; letter-spacing: .13em; } .note-orbit { flex-basis: 65px; } .note-orbit:nth-child(4n + 3) { flex-basis: 70px; } .note-art { width: 61px; height: 61px; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after, dialog::backdrop { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 .performance { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 24px; padding: 12px 0 20px; margin: 0 0 22px; border-bottom: 1px solid var(--line); }
 .performance-metric { min-width: 0; }
 .performance-metric > span { display: block; color: var(--muted); font-size: 10px; margin-bottom: 4px; }
@@ -222,3 +222,65 @@ main[data-motion="back"] .perfume { animation-name: card-back; }
 .performance-source:hover { color: var(--ink); text-decoration: underline; }
 html[data-theme="dark"] { color-scheme: dark; --paper: #1d2722; --ink: #e8eade; --sage: #a5b796; --muted: #a0a99b; --line: #3c493d; --wash: #303f33; --nav: rgba(29,39,34,.96); }
 html[data-theme="dark"] .brand img { filter: brightness(1.7); }
+
+/* Motion follows the action: forward to discover, backward to undo. */
+:root { --motion-ease: cubic-bezier(.16,1,.3,1); }
+.app-shell { overflow-x: clip; }
+.brand img { transform-origin: 50% 90%; animation: leaf-unfold .7s var(--motion-ease) both; }
+.perfume { animation: scent-forward .48s var(--motion-ease) both; }
+main[data-motion="back"] .perfume { animation-name: scent-back; }
+.perfume-visual { animation: bottle-reveal .65s var(--motion-ease) .04s both; }
+.perfume-hero, .pyramid { animation: none; }
+.perfume-hero > *, .description, .performance, .seasons, .reviews, .card-details {
+  animation: detail-reveal .5s var(--motion-ease) both;
+}
+.perfume-hero .house { animation-delay: .035s; }
+.perfume-hero .perfume-name { animation-delay: .075s; }
+.perfume-hero .chips { animation-delay: .12s; }
+.description, .performance { animation-delay: .14s; }
+.seasons, .reviews, .card-details { animation-delay: .21s; }
+.note-constellation { --stage-delay: .16s; }
+.note-constellation:nth-child(2) { --stage-delay: .23s; }
+.note-constellation:nth-child(3) { --stage-delay: .3s; }
+.note-stage { animation: detail-reveal .45s var(--motion-ease) var(--stage-delay) both; }
+.note-stage-line { transform-origin: left; animation: note-line .65s var(--motion-ease) var(--stage-delay) both; }
+.note-constellation .note-orbit { --note-delay: 0s; animation: ingredient-reveal .56s var(--motion-ease) calc(var(--stage-delay) + var(--note-delay)) both; }
+.note-orbit:nth-child(2) { --note-delay: .025s; }
+.note-orbit:nth-child(3) { --note-delay: .05s; }
+.note-orbit:nth-child(4) { --note-delay: .075s; }
+.note-orbit:nth-child(n + 5) { --note-delay: .1s; }
+.note-art { transition: transform .4s var(--motion-ease), filter .3s ease; }
+.nav-item svg { transition: transform .4s var(--motion-ease), stroke-width .25s ease; }
+.nav-item.active svg { transform: translateY(-2px) scale(1.04); }
+.nav-item:active svg { transform: translateY(0) scale(.86); }
+.reaction svg, .icon-button svg { transition: transform .32s var(--motion-ease); }
+.reaction.is-saving { color: var(--ink); opacity: 1; }
+.reaction.is-saving svg { animation: saving-breath .9s ease-in-out infinite; }
+.saving .perfume { filter: opacity(.82); }
+.loading-leaf { animation: leaf-breathe 1.5s ease-in-out infinite; }
+.library-list { animation: none; }
+.library-head { animation: detail-reveal .38s var(--motion-ease) both; }
+.library-row { animation: row-reveal .42s var(--motion-ease) both; }
+.library-row:nth-child(2) { animation-delay: .025s; }
+.library-row:nth-child(3) { animation-delay: .05s; }
+.library-row:nth-child(4) { animation-delay: .075s; }
+.library-row:nth-child(n + 5) { animation-delay: .1s; }
+.row-arrow { transition: transform .32s var(--motion-ease); }
+.library-row:hover .row-arrow { transform: translate(2px,-2px); }
+.toast { transition: opacity .22s ease, transform .35s var(--motion-ease); }
+dialog[open] { animation: sheet-reveal .42s var(--motion-ease) both; }
+dialog[open]::backdrop { animation: veil-reveal .32s ease both; }
+dialog[data-closing]::backdrop { animation: veil-hide .16s ease both; }
+@keyframes scent-forward { from { opacity: 0; transform: translate3d(26px,4px,0) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes scent-back { from { opacity: 0; transform: translate3d(-26px,4px,0) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes detail-reveal { from { opacity: 0; transform: translateY(11px); } to { opacity: 1; transform: none; } }
+@keyframes bottle-reveal { from { opacity: 0; transform: translateY(18px) rotate(-1.5deg) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ingredient-reveal { from { opacity: 0; transform: translateY(15px) rotate(-5deg) scale(.86); } to { opacity: 1; transform: none; } }
+@keyframes note-line { from { opacity: 0; transform: scaleX(.55); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes row-reveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes sheet-reveal { from { opacity: 0; transform: translateY(24px) scale(.975); } to { opacity: 1; transform: none; } }
+@keyframes veil-reveal { from { background: rgba(32,53,46,0); } to { background: rgba(32,53,46,.35); } }
+@keyframes veil-hide { to { background: rgba(32,53,46,0); } }
+@keyframes leaf-unfold { from { opacity: 0; transform: rotate(-14deg) scale(.82); } to { opacity: 1; transform: none; } }
+@keyframes leaf-breathe { 0%,100% { opacity: .4; transform: rotate(-8deg) scale(.92); } 50% { opacity: 1; transform: rotate(5deg) scale(1.04); } }
+@keyframes saving-breath { 0%,100% { transform: scale(.94); } 50% { transform: scale(1.08); } }
