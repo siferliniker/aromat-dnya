@@ -284,3 +284,116 @@ dialog[data-closing]::backdrop { animation: veil-hide .16s ease both; }
 @keyframes leaf-unfold { from { opacity: 0; transform: rotate(-14deg) scale(.82); } to { opacity: 1; transform: none; } }
 @keyframes leaf-breathe { 0%,100% { opacity: .4; transform: rotate(-8deg) scale(.92); } 50% { opacity: 1; transform: rotate(5deg) scale(1.04); } }
 @keyframes saving-breath { 0%,100% { transform: scale(.94); } 50% { transform: scale(1.08); } }
+
+/* One viewport, with deliberate pages instead of a scrolling document. */
+html, body { width: 100%; height: var(--app-height, 100dvh); overflow: hidden; overscroll-behavior: none; }
+.app-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 var(--gutter) calc(64px + var(--safe-bottom)); }
+.header { flex: none; min-height: clamp(48px,7dvh,64px); }
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 10px; overflow: hidden; }
+.compact-card, .compact-card.has-visual { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto auto; gap: 8px; padding-bottom: 4px; }
+.compact-card .perfume-hero { padding: 0; min-width: 0; text-align: center; }
+.compact-card .house { margin-bottom: 5px; font-size: 10px; }
+.compact-card .perfume-name { font-size: clamp(24px,6vw,42px); line-height: 1.08; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.compact-meta { margin: 6px 0 0; color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compact-card .perfume-visual { position: static; display: flex; justify-content: center; align-items: center; min-height: 0; margin: 0; }
+.compact-card .perfume-image { width: 100%; height: 100%; min-height: 0; max-height: 100%; object-fit: contain; }
+.compact-notes { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); align-items: center; gap: 6px; padding: 4px 0; min-height: 0; }
+.compact-notes .note-orbit { margin: 0; padding: 0; min-width: 0; width: 100%; }
+.compact-notes .note-art { width: clamp(32px,11vw,56px); height: clamp(32px,11vw,56px); }
+.compact-notes figcaption { font-size: 9px; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.compact-card:not(.has-visual) { grid-template-rows: auto minmax(0,1fr) auto; }
+.compact-card:not(.has-visual) .compact-notes { width: min(100%,560px); justify-self: center; grid-template-columns: repeat(3,minmax(0,1fr)); align-content: center; gap: clamp(10px,2dvh,24px) 12px; }
+.compact-card:not(.has-visual) .note-art { width: clamp(54px,min(18dvh,22vw),108px); height: clamp(54px,min(18dvh,22vw),108px); }
+.compact-card:not(.has-visual) figcaption { font-size: 11px; }
+.compact-metrics { display: flex; justify-content: center; gap: 24px; min-height: 0; padding: 3px 0; font-size: 11px; text-align: center; }
+.compact-metrics > span { max-width: 46%; }
+.compact-metrics small { display: block; font-size: 9px; color: var(--muted); }
+.reaction-area { position: static; flex: none; margin-top: 4px; padding: 2px 0; background: transparent; }
+.reaction { min-height: 44px; padding: 8px; }
+.reaction svg { width: 24px; height: 24px; }
+.message-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 16px 0; }
+.message-panel h1, .message-panel h2 { font-size: clamp(24px,6vw,34px); }
+.library-head { display: flex; align-items: baseline; justify-content: space-between; flex: none; padding: 0 0 10px; }
+.library-title { margin: 0; font-size: 30px; }
+.library-count, .page-number { color: var(--muted); font-size: 11px; }
+.library-list { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.library-row { flex: 1; min-height: 0; max-height: 88px; padding: 8px 0; }
+.row-house { margin-bottom: 3px; font-size: 9px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row-name { font-size: clamp(19px,4.6vw,25px); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+.row-detail { margin-top: 3px; font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.page-controls { display: grid; grid-template-columns: 44px minmax(40px,1fr) 44px; align-items: center; flex: none; min-height: 44px; width: min(100%,200px); align-self: center; text-align: center; }
+.page-controls button:disabled { cursor: default; opacity: .2; }
+dialog { overflow: hidden; padding: 42px 18px 12px; width: calc(100% - 24px); max-height: calc(var(--app-height,100dvh) - 24px); }
+#details-dialog, #catalog-dialog { height: calc(var(--app-height,100dvh) - 24px); }
+#details-dialog[open], #catalog-dialog[open] { display: flex; flex-direction: column; }
+#details-content { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 10px; }
+.detail-heading { flex: none; }
+.detail-heading .house { margin-bottom: 4px; }
+.detail-title { font-family: Georgia,"Times New Roman",serif; font-size: clamp(23px,5.5vw,36px); font-weight: 400; line-height: 1.12; letter-spacing: -.035em; margin: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.detail-tabs { flex: none; display: flex; gap: 12px; border-bottom: 1px solid var(--line); }
+.detail-tabs button { min-width: 0; min-height: 40px; padding: 7px 0; color: var(--muted); font-size: 10px; white-space: nowrap; border: 0; background: transparent; }
+.detail-tabs button[aria-pressed="true"] { color: var(--ink); box-shadow: inset 0 -1px var(--sage); }
+.detail-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.detail-pane > .section-label { flex: none; margin: 0; font-size: 12px; }
+.detail-copy { flex: 1; min-height: 0; margin: 0; white-space: pre-line; overflow: hidden; overflow-wrap: anywhere; font-size: 14px; line-height: 1.65; }
+.detail-sources { flex: none; display: flex; flex-wrap: wrap; gap: 6px 15px; font-size: 10px; color: var(--sage); }
+.detail-empty { margin: auto; text-align: center; color: var(--muted); font-size: 13px; }
+.detail-note-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; align-content: center; flex: 1; min-height: 0; }
+.detail-note-grid .note-orbit { padding: 0; margin: 0; min-width: 0; }
+.detail-note-grid .note-art { width: clamp(32px,10dvh,64px); height: clamp(32px,10dvh,64px); }
+.detail-note-grid figcaption { font-size: 10px; line-height: 1.35; }
+.detail-note-grid[data-count="1"] { grid-template-columns: minmax(0,1fr); }
+.detail-pager { margin-top: auto; }
+.select-perfume { width: 44px; min-width: 44px; min-height: 44px; align-self: center; }
+.catalog-head { flex: none; }
+.catalog-head .library-title { margin-bottom: 10px; }
+#catalog-form { display: flex; flex: none; align-items: center; gap: 10px; }
+#catalog-query { flex: 1; min-width: 0; }
+.catalog-status { flex: none; margin: 10px 0; }
+#catalog-results { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+#catalog-results .library-list { min-height: 0; }
+#filters-dialog .filter-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-top: 18px; }
+#filters-dialog label { display: block; color: var(--muted); font-size: 11px; }
+#filters-dialog select { width: 100%; min-height: 44px; color: var(--ink); background: var(--paper); font: inherit; border: 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 800px) {
+  .compact-card.has-visual { grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto; gap: 16px 6vw; }
+  .compact-card.has-visual .perfume-visual { grid-column: 1; grid-row: 1 / -1; }
+  .compact-card.has-visual .perfume-hero, .compact-card.has-visual .compact-notes, .compact-card.has-visual .compact-metrics { grid-column: 2; }
+  .compact-card.has-visual .compact-notes { grid-template-columns: repeat(3,minmax(0,1fr)); align-content: center; gap: 24px; }
+  .compact-card.has-visual .note-art { width: clamp(56px,10vw,100px); height: clamp(56px,10vw,100px); }
+  dialog { width: min(640px,calc(100% - 48px)); }
+}
+@media (max-height: 620px) {
+  .header { min-height: 48px; }
+  main { padding-top: 6px; }
+  .compact-card { gap: 5px; }
+  .compact-card .perfume-name { font-size: clamp(22px,5.6vw,30px); }
+  .compact-card:not(.has-visual) .note-art { width: clamp(44px,min(15dvh,19vw),70px); height: clamp(44px,min(15dvh,19vw),70px); }
+  .compact-card:not(.has-visual) .compact-notes { gap: 8px; }
+  .compact-card:not(.has-visual) figcaption { font-size: 10px; }
+  .detail-title { font-size: 23px; }
+  #details-content { gap: 7px; }
+}
+@media (max-height: 480px) {
+  .header { min-height: 44px; }
+  .app-shell { padding-bottom: calc(48px + var(--safe-bottom)); }
+  .nav-inner { padding-top: 4px; padding-bottom: 4px; }
+  .nav-item { min-height: 40px; padding: 7px; }
+  .reaction { min-height: 38px; padding: 6px; }
+  .compact-card .house { font-size: 9px; margin-bottom: 2px; }
+  .compact-card .perfume-name { font-size: 22px; -webkit-line-clamp: 1; }
+  .compact-meta { margin-top: 3px; font-size: 9px; }
+  .compact-card .compact-notes, .compact-card:not(.has-visual) .compact-notes, .compact-card.has-visual .compact-notes { grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; width: 100%; }
+  .compact-card .note-art, .compact-card:not(.has-visual) .note-art, .compact-card.has-visual .note-art { width: clamp(24px,8dvh,38px); height: clamp(24px,8dvh,38px); }
+  .compact-card .compact-notes figcaption { font-size: 9px; }
+  .compact-metrics { font-size: 10px; padding: 0; gap: 12px; }
+  .detail-note-grid .note-art { width: 28px; height: 28px; }
+  .detail-note-grid figcaption { font-size: 10px; line-height: 1.2; }
+}
+@media (max-height: 360px) {
+  .detail-heading, .catalog-head, .catalog-status, #filters-title { display: none; }
+  .detail-tabs button { min-height: 32px; }
+  #details-content { gap: 5px; }
+  #filters-dialog .filter-grid { margin-top: 0; gap: 8px; }
+  #filters-dialog select { min-height: 36px; }
+}

@@ -6,6 +6,7 @@
   const main = document.querySelector("#main");
   const dialog = document.querySelector("#details-dialog");
   const catalogDialog = document.querySelector("#catalog-dialog");
+  const filtersDialog = document.querySelector("#filters-dialog");
   const undoButton = document.querySelector("#undo-reaction");
   const searchButton = document.querySelector("#open-catalog");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -13,7 +14,9 @@
   const closingDialogs = new WeakMap();
   let viewVersion = 0, cardExit = null;
   let catalogItems = [], catalogCount = 0, catalogSequence = 0,
-    catalogTimer, catalogFacetsReady = false, catalogBusy = false;
+    catalogTimer, catalogFacetsReady = false, catalogBusy = false, catalogPage = 0, catalogLimit = 5;
+  const libraryPages = {};
+  let detailView = null, viewportTimer;
   let state = null,
     activeTab = "discover",
     pending = false,
@@ -193,6 +196,7 @@
     updateCounts();
     if (dialog.open) dialog.close();
     if (catalogDialog.open) catalogDialog.close();
+    if (filtersDialog.open) filtersDialog.close();
     document.querySelector(".bottom-nav").hidden = true;
     document.querySelector("#header-note").textContent =
       "Ваше личное пространство";
@@ -290,17 +294,6 @@
     return `<figure class="note-orbit" tabindex="0" title="${esc(label)}">${illustration}<figcaption>${esc(name)}</figcaption></figure>`;
   }
 
-  function reviewsMarkup(card) {
-    const reviews = Array.isArray(card.reviews)
-      ? card.reviews.filter((review) => review && typeof review.text === "string" && review.text.trim() && safeUrl(review.source_url))
-      : [];
-    if (!reviews.length) return "";
-    return `<section class="reviews" aria-label="Отзывы"><h2 class="section-label">Отзывы</h2>${reviews.map((review) => {
-      const videoOnly = /без текстового|без извлеч|не расшифровано/.test(review.source_title || "");
-      return `<article class="review">${videoOnly ? "" : `<p class="review-text">${esc(review.text)}</p>`}<a class="review-source" href="${esc(safeUrl(review.source_url))}" target="_blank" rel="noopener noreferrer">${esc(review.author || "Источник")} · ${videoOnly ? "Видеообзор" : "Читать обзор"} ↗</a></article>`;
-    }).join("")}</section>`;
-  }
-
   function handleImageError(image) {
     if (!(image instanceof HTMLImageElement) || !image.classList.contains("perfume-image") || !image.isConnected)
       return;
@@ -322,60 +315,22 @@
     });
   }
 
+  const arrows = { prev: '<path d="m14 6-6 6 6 6"/>', next: '<path d="m10 6 6 6-6 6"/>' };
+  function pagerMarkup(page, count, scope) {
+    return `<button class="icon-button" data-${scope}-page="${page - 1}" aria-label="Предыдущая страница" ${page <= 0 ? "disabled" : ""}>${svg(arrows.prev)}</button><span class="page-number">${page + 1} / ${Math.max(1, count)}</span><button class="icon-button" data-${scope}-page="${page + 1}" aria-label="Следующая страница" ${page >= count - 1 ? "disabled" : ""}>${svg(arrows.next)}</button>`;
+  }
   function cardMarkup(card) {
-    const chips = [
-      card.family
-        ? `<span class="chip family">${esc(translated(card.family, families))}</span>`
-        : "",
-      card.concentration
-        ? `<span class="chip">${esc(translated(card.concentration, concentrations))}</span>`
-        : "",
-    ].join("");
-    const pyramid = [
-      ["top", "Верхние", card.notes?.top || card.top_notes],
-      ["heart", "Сердце", card.notes?.heart || card.heart_notes],
-      ["base", "База", card.notes?.base || card.base_notes],
-    ]
-      .filter(([, , values]) => safeList(values).length)
-      .map(([level, label, values], index) =>
-        `<section class="note-constellation note-constellation--${level}" aria-label="${label} ноты"><header class="note-stage"><span class="note-stage-number" aria-hidden="true">0${index + 1}</span><h2>${label}</h2><span class="note-stage-line" aria-hidden="true"></span></header><div class="note-cloud">${safeList(values).map(noteMarkup).join("")}</div></section>`,
-      )
-      .join("");
-    const seasons = safeList(card.seasons)
-      .filter((season) => seasonNames[season])
-      .map(
-        (season) =>
-          `<span class="season">${svg(seasonIcons[season])}${seasonNames[season]}</span>`,
-      )
-      .join("");
-    const meta = [
-      card.release_year ? String(card.release_year) : "",
-      safeList(card.perfumers).join(", "),
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    const description = typeof card.description_ru === "string" ? card.description_ru.trim() : "";
-    const performance = performanceMarkup(card.performance);
+    const levels = [safeList(card.notes?.top), safeList(card.notes?.heart), safeList(card.notes?.base)];
+    const selected = [];
+    for (let index = 0; index < Math.max(...levels.map(level => level.length), 0) && selected.length < 6; index++) {
+      for (const level of levels) if (level[index] && !selected.includes(level[index]) && selected.length < 6) selected.push(level[index]);
+    }
     const visual = imageMarkup(card);
-    const imageSource = safeUrl(card.image?.source_url);
-    const more = [
-      !visual ? '<p class="image-status">Фото пока не добавлено.</p>' : "",
-      card.recommendation_reason_ru ? `<p>${esc(card.recommendation_reason_ru)}</p>` : "",
-      meta ? `<p>${esc(meta)}</p>` : "",
-      imageSource ? `<p>Фото: <a href="${esc(imageSource)}" target="_blank" rel="noopener noreferrer">${esc(card.image.author || card.image.source_title || "Источник")} ↗</a></p>` : "",
-      '<p>Изображения нот — художественные иллюстрации ингредиентов и их групп; для редких нот используется абстрактный образ.</p>',
-    ].filter(Boolean).join("");
-    return `<article class="perfume${visual ? " has-visual" : ""}">${visual}<div class="perfume-content"><header class="perfume-hero"><p class="house">${esc(card.house)}</p><h1 class="perfume-name">${esc(card.name)}</h1>${chips ? `<div class="chips">${chips}</div>` : ""}</header>${performance}${description ? `<p class="description">${esc(description)}</p>` : ""}${pyramid ? `<section class="pyramid" aria-label="Пирамида аромата">${pyramid}</section>` : ""}${seasons ? `<div class="seasons">${seasons}</div>` : ""}${reviewsMarkup(card)}${more ? `<details class="card-details"><summary>Подробнее</summary>${more}</details>` : ""}</div></article>`;
+    const meta = [card.family ? translated(card.family, families) : "", card.concentration ? translated(card.concentration, concentrations) : ""].filter(Boolean).join(" · ");
+    const performance = card.performance;
+    const metrics = performance ? [performance.longevity ? `<span><small>Стойкость</small>${esc(performance.longevity)}</span>` : "", performance.sillage ? `<span><small>${performance.diffusion_type === "projection" ? "Проекция" : "Шлейф"}</small>${esc(performance.sillage)}</span>` : ""].join("") : "";
+    return `<article class="perfume compact-card${visual ? " has-visual" : ""}"><header class="perfume-hero"><p class="house">${esc(card.house)}</p><h1 class="perfume-name" title="${esc(card.name)}">${esc(card.name)}</h1><p class="compact-meta">${esc(meta)}</p></header>${visual}<section class="compact-notes note-constellation" aria-label="Ноты аромата">${selected.map(noteMarkup).join("")}</section>${metrics ? `<div class="compact-metrics">${metrics}</div>` : ""}</article>`;
   }
-
-  function performanceMarkup(data) {
-    if (!data || !safeUrl(data.source_url) || (!data.longevity && !data.sillage)) return "";
-    const author = data.basis === "reviewer_report";
-    const confidence = {high: "высокая", medium: "средняя", low: "низкая"}[data.confidence];
-    const title = [data.observed_at ? `Получено: ${data.observed_at.slice(0,10)}` : "", confidence ? `Уверенность источника: ${confidence}` : ""].filter(Boolean).join(". ");
-    return `<section class="performance" aria-label="Стойкость и распространение аромата">${data.longevity ? `<div class="performance-metric"><span>Стойкость</span><strong>${esc(data.longevity)}</strong></div>` : ""}${data.sillage ? `<div class="performance-metric"><span>${data.diffusion_type === "projection" ? "Проекция" : "Шлейф"}</span><strong>${esc(data.sillage)}</strong></div>` : ""}<a class="performance-source" href="${esc(safeUrl(data.source_url))}" target="_blank" rel="noopener noreferrer" title="${esc(title)}">${author ? "По опыту автора" : "Оценка источника"} · ${esc(data.source_name)} ↗</a></section>`;
-  }
-
   function renderDiscover() {
     resetViewMotion();
     if (!state?.current) {
@@ -447,44 +402,101 @@
       if (!libraries[kind])
         libraries[kind] = await api(`/api/library?kind=${kind}`);
       if (activeTab !== kind) return;
-      const items = libraries[kind].items;
-      main.innerHTML =
-        heading +
-        (items.length
-          ? `<div class="library-list">${items.map((card, i) => `<button type="button" class="library-row" data-detail="${i}"><span><span class="row-house">${esc(card.house)}</span><span class="row-name">${esc(card.name)}</span><span class="row-detail">${card.reaction === "bought" ? "В коллекции" : card.reaction === "known" ? "Уже знаком" : "Хочу попробовать"}${card.family ? ` · ${esc(translated(card.family, families))}` : ""}</span></span><span class="row-arrow" aria-hidden="true">↗</span></button>`).join("")}</div>`
-          : `<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><h2>${wishlist ? "Первое желание — впереди" : "Здесь будет ваша история"}</h2><p>${wishlist ? "Нажмите на сердце в подборе, и аромат появится здесь." : "Отмечайте знакомые и купленные ароматы в подборе — мы сохраним их для вас."}</p><button type="button" class="plain-button" id="back-discover">К подбору</button></section>`);
-      document
-        .querySelector("#back-discover")
-        ?.addEventListener("click", () => switchTab("discover"));
-      main.querySelectorAll("[data-detail]").forEach((button) =>
-        button.addEventListener("click", () => {
-          const card = items[Number(button.dataset.detail)];
-          showDetails(card);
-        }),
-      );
+      paintLibrary(kind);
     } catch (error) {
       if (activeTab === kind)
         error.auth ? locked(true) : errorPanel(() => renderLibrary(kind));
     }
   }
 
+  function paintLibrary(kind) {
+    const items = libraries[kind]?.items || [];
+    const limit = Math.max(1, Math.min(7, Math.floor((main.clientHeight - 100) / 78)));
+    const count = Math.max(1, Math.ceil(items.length / limit));
+    const page = libraryPages[kind] = Math.max(0, Math.min(libraryPages[kind] || 0, count - 1));
+    const visible = items.slice(page * limit, (page + 1) * limit);
+    main.innerHTML = `<header class="library-head"><h1 class="library-title">${kind === "wishlist" ? "Избранное" : "Коллекция"}</h1><span class="library-count">${items.length}</span></header>` +
+      (items.length ? `<div class="library-list">${visible.map((card, i) => `<button class="library-row" data-detail="${i}"><span><span class="row-house">${esc(card.house)}</span><span class="row-name">${esc(card.name)}</span><span class="row-detail">${esc(labels[card.reaction] || "")}</span></span><span class="row-arrow" aria-hidden="true">↗</span></button>`).join("")}</div><div class="page-controls">${pagerMarkup(page, count, "library")}</div>` : '<section class="message-panel"><img class="message-mark" src="/static/mark.svg" alt=""><p>Здесь появятся отмеченные ароматы</p></section>');
+    main.querySelectorAll("[data-detail]").forEach(button => button.addEventListener("click", () => showDetails(visible[Number(button.dataset.detail)])));
+    main.querySelectorAll("[data-library-page]").forEach(button => button.addEventListener("click", () => { libraryPages[kind] = Number(button.dataset.libraryPage); paintLibrary(kind); }));
+  }
+
+  function detailSections() {
+    const card = detailView.card;
+    if (detailView.tab === "sources") return [
+      { title: "Каталог", text: "Каталог ароматов — Scento, лицензия CC BY 4.0. Изменения: выборка, перевод описаний, нот и семейств.", links: [["Scento", "https://www.scento.com/perfume-database"], ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"]] },
+      { title: "Иллюстрации", text: "Картинки нот — художественные образы ингредиентов. Для синтетических и редких нот используются абстрактные иллюстрации. Расположение не обозначает интенсивность нот." },
+      ...(card?.image ? [{ title: "Фото флакона", text: card.image.author || card.image.source_title || card.house, links: [["Открыть источник", card.image.source_url]] }] : []),
+    ];
+    if (detailView.tab === "notes") return [
+      ["Верхние ноты", card.notes?.top], ["Сердце", card.notes?.heart], ["База", card.notes?.base],
+    ].filter(([, values]) => safeList(values).length).map(([title, values]) => ({title, notes:safeList(values)}));
+    if (detailView.tab === "reviews") return (Array.isArray(card.reviews) ? card.reviews : []).filter(review => review.text && safeUrl(review.source_url)).map(review => ({
+      title: review.author || "Обзор", text: review.text, links: [["Открыть обзор", review.source_url]],
+    }));
+    const metrics = card.performance;
+    const passport = [card.house + " · " + card.name, card.family ? translated(card.family, families) : "", card.concentration ? translated(card.concentration, concentrations) : "", card.release_year || "", safeList(card.perfumers).join(", "), safeList(card.seasons).map(value => seasonNames[value] || value).join(", ")].filter(Boolean).join("\n");
+    return [
+      { title: "Об аромате", text: card.description_ru || passport },
+      ...(metrics ? [{title:"Стойкость и шлейф", text:[metrics.longevity ? "Стойкость: " + metrics.longevity : "", metrics.sillage ? (metrics.diffusion_type === "projection" ? "Проекция: " : "Шлейф: ") + metrics.sillage : "", metrics.basis === "reviewer_report" ? "По опыту автора" : "Оценка источника"].filter(Boolean).join("\n"), links:[[metrics.source_name || "Источник",metrics.source_url]]}] : []),
+      ...(card.description_ru ? [{title:"Паспорт аромата",text:passport}] : []),
+      ...(card.recommendation_reason_ru ? [{title:"Почему этот аромат",text:card.recommendation_reason_ru}] : []),
+    ];
+  }
+
+  function detailPiece(section, text) {
+    const links = (section.links || []).filter(([, url]) => safeUrl(url));
+    return `<h2 class="section-label">${esc(section.title)}</h2><p class="detail-copy">${esc(text)}</p>${links.length ? `<footer class="detail-sources">${links.map(([label, url]) => `<a href="${esc(safeUrl(url))}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`).join("")}</footer>` : ""}`;
+  }
+
+  function renderDetailPages() {
+    const content = document.querySelector("#details-content");
+    const card = detailView.card;
+    const tabs = card ? [["overview","Об аромате"],["notes","Ноты"],["reviews","Отзывы"],["sources","Источники"]] : [];
+    content.innerHTML = `<header class="detail-heading"><p class="house">${esc(card?.house || "АРОМАТИЯ")}</p><h1 class="detail-title">${esc(card?.name || "Источники")}</h1></header>${tabs.length ? `<nav class="detail-tabs" aria-label="Подробности">${tabs.map(([key,label]) => `<button data-detail-tab="${key}" aria-pressed="${detailView.tab === key}">${label}</button>`).join("")}</nav>` : ""}<section class="detail-pane"></section><div class="page-controls detail-pager"></div>${detailView.fromCatalog && card?.can_select ? `<button class="icon-button select-perfume" aria-label="Выбрать этот аромат" title="Выбрать этот аромат" ${pending ? "disabled" : ""}>${svg('<path d="M4 12h16m-6-6 6 6-6 6"/>')}</button>` : ""}`;
+    const pane = content.querySelector(".detail-pane");
+    const pages = [];
+    for (const section of detailSections()) {
+      if (section.notes) {
+        const count = pane.clientHeight < 140 ? 1 : Math.max(3, Math.min(9, Math.floor((pane.clientHeight - 32) / 88) * 3));
+        for (let offset = 0; offset < section.notes.length; offset += count) pages.push(`<h2 class="section-label">${esc(section.title)}</h2><div class="detail-note-grid" data-count="${count}">${section.notes.slice(offset, offset + count).map(noteMarkup).join("")}</div>`);
+        continue;
+      }
+      let tokens = (String(section.text || "").match(/\S+\s*/gu) || []).flatMap(token => {
+        const chars = [...token]; return chars.length > 48 ? Array.from({length:Math.ceil(chars.length/48)}, (_, i) => chars.slice(i*48,(i+1)*48).join("")) : [token];
+      });
+      while (tokens.length) {
+        let low = 1, high = tokens.length, fit = 1;
+        while (low <= high) {
+          const middle = Math.floor((low + high) / 2);
+          pane.innerHTML = detailPiece(section, tokens.slice(0,middle).join(""));
+          const copy = pane.querySelector(".detail-copy");
+          if (copy.scrollHeight <= copy.clientHeight + 1) { fit = middle; low = middle + 1; } else high = middle - 1;
+        }
+        pages.push(detailPiece(section, tokens.slice(0,fit).join(""))); tokens = tokens.slice(fit);
+      }
+    }
+    if (!pages.length) pages.push('<div class="detail-empty">Пока нет данных для этого раздела</div>');
+    detailView.page = Math.max(0, Math.min(detailView.page, pages.length - 1));
+    pane.innerHTML = pages[detailView.page];
+    content.querySelector(".detail-pager").innerHTML = pagerMarkup(detailView.page, pages.length, "detail");
+    content.querySelectorAll("[data-detail-tab]").forEach(button => button.addEventListener("click", () => { detailView.tab = button.dataset.detailTab; detailView.page = 0; renderDetailPages(); }));
+    content.querySelectorAll("[data-detail-page]").forEach(button => button.addEventListener("click", () => { detailView.page = Number(button.dataset.detailPage); renderDetailPages(); }));
+    content.querySelector(".select-perfume")?.addEventListener("click", () => selectPerfume(card));
+  }
+
   function showDetails(card, fromCatalog = false) {
     const content = document.querySelector("#details-content");
     content.dataset.perfumeId = String(card.id);
-    content.innerHTML = cardMarkup(card) + (fromCatalog && card.can_select
-      ? '<button type="button" class="plain-button select-perfume">Выбрать для знакомства</button>'
-      : `<p class="dialog-reaction">${esc(labels[card.reaction] || (fromCatalog ? "Аромат уже в вашей истории" : ""))}</p>`);
-    checkImages(content);
-    content.querySelector(".select-perfume")?.addEventListener("click", () => selectPerfume(card));
+    detailView = {card, fromCatalog, tab:"overview", page:0};
     dialog.showModal();
-    dialog.scrollTop = 0;
+    renderDetailPages();
     if (!card.performance) {
       api(`/api/performance/${card.id}`).then(data => {
         if (!data.performance) return;
         card.performance = data.performance;
         if (!dialog.open || content.dataset.perfumeId !== String(card.id)) return;
-        if (!content.querySelector(".performance"))
-          content.querySelector(".perfume-hero")?.insertAdjacentHTML("afterend", performanceMarkup(data.performance));
+        if (detailView?.card?.id === card.id) renderDetailPages();
       }).catch(error => {
         if (error.auth) { dialog.close(); catalogDialog.close(); locked(true); }
       });
@@ -571,30 +583,28 @@
       button.addEventListener("click", () => showDetails(catalogItems[Number(button.dataset.catalogDetail)], true));
     });
     document.querySelector("#catalog-status").textContent = `${catalogCount} ароматов`;
-    document.querySelector("#catalog-more").hidden = catalogItems.length >= catalogCount;
+    const count = Math.max(1, Math.ceil(catalogCount / catalogLimit));
+    document.querySelector("#catalog-pager").innerHTML = pagerMarkup(catalogPage, count, "catalog");
+    document.querySelectorAll("[data-catalog-page]").forEach(button => button.addEventListener("click", () => { if (!catalogBusy) loadCatalog(Number(button.dataset.catalogPage)); }));
   }
 
-  async function loadCatalog(reset = true, sequence = ++catalogSequence) {
-    const more = document.querySelector("#catalog-more");
+  async function loadCatalog(page = 0, sequence = ++catalogSequence) {
     const status = document.querySelector("#catalog-status");
-    const params = new URLSearchParams({ offset: String(reset ? 0 : catalogItems.length), limit: "30" });
+    catalogLimit = Math.max(1, Math.min(7, Math.floor((catalogDialog.clientHeight - 180) / 78)));
+    const params = new URLSearchParams({ offset: String(page * catalogLimit), limit: String(catalogLimit) });
     for (const key of ["q", "family", "season", "time", "note"]) {
       const value = document.querySelector(key === "q" ? "#catalog-query" : `#catalog-${key}`).value.trim();
       if (value) params.set(key, value);
     }
     catalogBusy = true;
-    more.disabled = true;
-    if (reset) {
-      catalogItems = [];
-      document.querySelector("#catalog-results").innerHTML = "";
-      more.hidden = true;
-    }
+    document.querySelectorAll("[data-catalog-page]").forEach(button => { button.disabled = true; });
     status.textContent = "Ищем ароматы…";
     try {
       const data = await api(`/api/catalog?${params}`);
       if (sequence !== catalogSequence || !catalogDialog.open) return;
       if (!catalogFacetsReady) populateFacets(data.facets);
-      catalogItems = reset ? data.items : catalogItems.concat(data.items);
+      catalogPage = page;
+      catalogItems = data.items;
       catalogCount = data.count;
       renderCatalogResults();
     } catch (error) {
@@ -606,13 +616,12 @@
         retry.type = "button";
         retry.className = "text-button";
         retry.textContent = "Попробовать снова";
-        retry.addEventListener("click", () => loadCatalog(reset));
+        retry.addEventListener("click", () => loadCatalog(page));
         document.querySelector("#catalog-results").append(retry);
       }
     } finally {
       if (sequence === catalogSequence) {
         catalogBusy = false;
-        more.disabled = false;
       }
     }
   }
@@ -620,7 +629,7 @@
   function queueCatalogSearch(immediate = false) {
     clearTimeout(catalogTimer);
     const sequence = ++catalogSequence;
-    catalogTimer = setTimeout(() => loadCatalog(true, sequence), immediate ? 0 : 250);
+    catalogTimer = setTimeout(() => loadCatalog(0, sequence), immediate ? 0 : 250);
   }
 
   function openCatalog() {
@@ -664,6 +673,14 @@
   }
 
   searchButton.addEventListener("click", openCatalog);
+  document.querySelector("#open-details").addEventListener("click", () => {
+    if (state?.current) showDetails(state.current);
+    else {
+      detailView = {card:null, fromCatalog:false, tab:"sources", page:0};
+      delete document.querySelector("#details-content").dataset.perfumeId;
+      dialog.showModal(); renderDetailPages();
+    }
+  });
   undoButton.addEventListener("click", undoReaction);
   document.querySelector("#catalog-query").addEventListener("input", () => queueCatalogSearch());
   for (const key of ["family", "season", "time", "note"])
@@ -674,11 +691,15 @@
   });
   document.querySelector("#catalog-reset").addEventListener("click", () => {
     document.querySelector("#catalog-form").reset();
+    for (const key of ["family", "season", "time", "note"]) document.querySelector(`#catalog-${key}`).value = "";
     queueCatalogSearch(true);
   });
-  document.querySelector("#catalog-more").addEventListener("click", () => {
-    if (!catalogBusy) loadCatalog(false);
+  document.querySelector("#catalog-filter-toggle").addEventListener("click", () => {
+    filtersDialog.showModal();
+    try { webapp?.BackButton?.show(); } catch (_) {}
   });
+  filtersDialog.querySelector(".close-dialog").addEventListener("click", () => closeDialog(filtersDialog));
+  filtersDialog.addEventListener("click", event => { if (event.target === filtersDialog) closeDialog(filtersDialog); });
   catalogDialog.querySelector(".close-dialog").addEventListener("click", () => closeDialog(catalogDialog));
   catalogDialog.addEventListener("click", event => {
     if (event.target === catalogDialog) closeDialog(catalogDialog);
@@ -697,9 +718,10 @@
   );
   const closeDetails = () => {
     if (dialog.open) closeDialog(dialog);
+    else if (filtersDialog.open) closeDialog(filtersDialog);
     else if (catalogDialog.open) closeDialog(catalogDialog);
   };
-  for (const target of [dialog, catalogDialog]) target.addEventListener("cancel", event => {
+  for (const target of [dialog, catalogDialog, filtersDialog]) target.addEventListener("cancel", event => {
     event.preventDefault();
     closeDialog(target);
   });
@@ -714,6 +736,19 @@
     } catch (_) {}
   });
   document.addEventListener("error", (event) => handleImageError(event.target), true);
+  function fitViewport() {
+    const height = Math.round(window.visualViewport?.height || window.innerHeight);
+    document.documentElement.style.setProperty("--app-height", `${height}px`);
+    clearTimeout(viewportTimer);
+    viewportTimer = setTimeout(() => {
+      if (dialog.open && detailView) renderDetailPages();
+      if (catalogDialog.open) loadCatalog(0);
+      if (["wishlist", "known"].includes(activeTab) && libraries[activeTab]) paintLibrary(activeTab);
+    }, 180);
+  }
+  window.visualViewport?.addEventListener("resize", fitViewport);
+  window.addEventListener("resize", fitViewport);
+  fitViewport();
   theme();
   try {
     webapp?.ready();
